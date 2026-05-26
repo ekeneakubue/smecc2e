@@ -17,10 +17,21 @@ const USER_ROLES: DashboardUser["role"][] = [
 
 const USER_STATUSES: DashboardUser["status"][] = ["Active", "Inactive"];
 
-const INSTITUTION_OPTIONS = [
+const INSTITUTION_OPTIONS: string[] = [
   ...hostInstitutions,
   "SMECC2E Consortium",
-] as const;
+];
+
+type CoordinatorUserFormState = {
+  name: string;
+  email: string;
+  phoneNumber: string;
+  password: string;
+  confirmPassword: string;
+  institution: string;
+  role: DashboardUser["role"];
+  status: DashboardUser["status"];
+};
 
 const inputClass =
   "mt-1 w-full rounded-lg border-2 border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-900 outline-none focus:border-[#062763] focus:ring-2 focus:ring-[#062763]/15 disabled:opacity-50";
@@ -274,7 +285,7 @@ export function CoordinatorUsers({
   const [profilePreview, setProfilePreview] = useState<string | null>(null);
   const [profileImageFile, setProfileImageFile] = useState<File | null>(null);
   const profilePreviewRef = useRef<string | null>(null);
-  const [form, setForm] = useState({
+  const [form, setForm] = useState<CoordinatorUserFormState>({
     name: "",
     email: "",
     phoneNumber: "",
@@ -295,7 +306,7 @@ export function CoordinatorUsers({
   const [editProfileFile, setEditProfileFile] = useState<File | null>(null);
   const [editProfileRemoved, setEditProfileRemoved] = useState(false);
   const editProfilePreviewRef = useRef<string | null>(null);
-  const [editForm, setEditForm] = useState({
+  const [editForm, setEditForm] = useState<CoordinatorUserFormState>({
     name: "",
     email: "",
     phoneNumber: "",
@@ -1117,9 +1128,7 @@ export function CoordinatorUsers({
                       {inst}
                     </option>
                   ))}
-                  {!INSTITUTION_OPTIONS.includes(
-                    editForm.institution as (typeof INSTITUTION_OPTIONS)[number]
-                  ) && (
+                  {!INSTITUTION_OPTIONS.includes(editForm.institution) && (
                     <option value={editForm.institution}>
                       {editForm.institution}
                     </option>
