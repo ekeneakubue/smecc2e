@@ -1,0 +1,284 @@
+"use client";
+
+import Link from "next/link";
+import { useRouter, useSearchParams } from "next/navigation";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import {
+  applicantDisplayName,
+  COORDINATOR_APPLICATION_STATUSES,
+  STATUS_LABELS,
+  type ApplicationRecord,
+} from "@/lib/application-types";
+import { hostInstitutions } from "@/lib/programmes";
+import { StatusBadge } from "./coordinator-shared";
+
+function StatCard({
+  label,
+  value,
+  accent,
+}: {
+  label: string;
+  value: number;
+  accent?: "amber" | "sky" | "emerald" | "red";
+}) {
+  const accentBorder: Record<string, string> = {
+    amber: "border-t-amber-400",
+    sky: "border-t-sky-400",
+    emerald: "border-t-emerald-400",
+    red: "border-t-red-400",
+  };
+  return (
+    <div
+      className={`rounded-xl border border-slate-200 bg-white px-4 py-5 shadow-sm ${
+        accent ? `border-t-4 ${accentBorder[accent]}` : ""
+      }`}
+    >
+      <p className="text-xs font-bold uppercase tracking-wide text-slate-900">
+        {label}
+      </p>
+      <p className="mt-2 text-3xl font-bold text-[#062763]">{value}</p>
+    </div>
+  );
+}
+
+export function CoordinatorDashboard() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const [isHydrated, setIsHydrated] = useState(false);
+  const [applications, setApplications] = useState<ApplicationRecord[]>([]);
+  const [userCount, setUserCount] = useState(0);
+  const [totalProgrammes, setTotalProgrammes] = useState(0);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    setIsHydrated(true);
+  }, []);
+
+  const sectionParam = isHydrated ? searchParams.get("section") : null;
+
+  const loadDashboardData = useCallback(async () => {
+    setLoading(true);
+    try {
+      const [appsRes, usersRes, programsRes] = await Promise.all([
+        fetch("/api/applications"),
+        fetch("/api/users"),
+        fetch("/api/programs"),
+      ]);
+      if (appsRes.ok) {
+        const data = (await appsRes.json()) as {
+          applications: ApplicationRecord[];
+        };
+        setApplications(data.applications);
+      }
+      if (usersRes.ok) {
+        const data = (await usersRes.json()) as { users: unknown[] };
+        setUserCount(data.users?.length ?? 0);
+      } else {
+        setUserCount(0);
+      }
+      if (programsRes.ok) {
+        const data = (await programsRes.json()) as {
+          universities?: { programs: unknown[] }[];
+        };
+        const count =
+          data.universities?.reduce(
+            (sum, u) => sum + (u.programs?.length ?? 0),
+            0
+          ) ?? 0;
+        setTotalProgrammes(count);
+      } else {
+        setTotalProgrammes(0);
+      }
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!isHydrated) return;
+    if (sectionParam === "users") {
+      router.replace("/coordinator/users");
+    } else if (sectionParam === "regions") {
+      router.replace("/coordinator/regions");
+    } else if (
+      sectionParam === "institutions" ||
+      sectionParam === "universities"
+    ) {
+      router.replace("/coordinator/institutions");
+    } else if (sectionParam === "applicants") {
+      router.replace("/coordinator/applicants");
+    } else if (sectionParam === "scholars") {
+      router.replace("/coordinator/scholars");
+    } else if (sectionParam === "programs") {
+      router.replace("/coordinator/programs");
+    }
+  }, [isHydrated, sectionParam, router]);
+
+  useEffect(() => {
+    loadDashboardData();
+  }, [loadDashboardData]);
+
+  const scholarsCount = useMemo(
+    () => applications.filter((a) => a.status === "approved").length,
+    [applications]
+  );
+
+  const stats = useMemo(() => {
+    const counts = {
+      total: applications.length,
+      pending: 0,
+      under_review: 0,
+      approved: 0,
+      rejected: 0,
+    };
+    for (const app of applications) {
+      counts[app.status]++;
+    }
+    return counts;
+  }, [applications]);
+
+  return (
+    <div className="flex min-w-0 flex-1 flex-col">
+      <header className="sticky top-0 z-30 flex items-center justify-between gap-4 border-b border-slate-200 bg-white px-4 py-4 shadow-sm sm:px-6 lg:pl-6">
+        <div className="pl-12 lg:pl-0">
+          <h1 className="text-lg font-bold text-[#062763] sm:text-xl">Overview</h1>
+          <p className="text-sm font-semibold text-slate-800">
+            SMECC2E mobility & scholarship coordination
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={loadDashboardData}
+          disabled={loading}
+          className="shrink-0 rounded-lg border-2 border-[#062763]/25 px-4 py-2 text-sm font-semibold text-[#062763] transition hover:bg-[#062763]/5 disabled:opacity-50"
+        >
+          {loading ? "Refreshing…" : "Refresh"}
+        </button>
+      </header>
+
+      <main className="flex-1 overflow-auto bg-slate-50 p-4 sm:p-6">
+        <div className="space-y-6">
+              <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+                <StatCard label="Total applicants" value={stats.total} />
+                <StatCard label="Scholars (approved)" value={stats.approved} accent="emerald" />
+                <StatCard label="Under review" value={stats.under_review} accent="sky" />
+                <StatCard label="Pending" value={stats.pending} accent="amber" />
+              </div>
+
+              <div className="grid gap-6 lg:grid-cols-2">
+                <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+                  <h2 className="text-base font-bold text-[#062763]">
+                    Application pipeline
+                  </h2>
+                  <ul className="mt-4 space-y-3">
+                    {COORDINATOR_APPLICATION_STATUSES.map((status) => {
+                      const count = applications.filter(
+                        (a) => a.status === status
+                      ).length;
+                      const pct =
+                        stats.total > 0
+                          ? Math.round((count / stats.total) * 100)
+                          : 0;
+                      return (
+                        <li key={status}>
+                          <div className="flex justify-between text-sm">
+                            <span className="font-bold text-slate-900">
+                              {STATUS_LABELS[status]}
+                            </span>
+                            <span className="font-bold text-[#062763]">
+                              {count} ({pct}%)
+                            </span>
+                          </div>
+                          <div className="mt-1 h-2 overflow-hidden rounded-full bg-slate-100">
+                            <div
+                              className="h-full rounded-full bg-[#062763] transition-all"
+                              style={{ width: `${pct}%` }}
+                            />
+                          </div>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                </div>
+
+                <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+                  <div className="flex items-center justify-between">
+                    <h2 className="text-base font-bold text-[#062763]">
+                      Recent applicants
+                    </h2>
+                    <Link
+                      href="/coordinator/applicants"
+                      className="text-xs font-bold text-[#062763] hover:underline"
+                    >
+                      View all
+                    </Link>
+                  </div>
+                  <ul className="mt-4 divide-y divide-slate-100">
+                    {applications.slice(0, 5).map((app) => (
+                      <li
+                        key={app.id}
+                        className="flex items-center justify-between gap-3 py-3"
+                      >
+                        <div className="min-w-0">
+                          <p className="truncate font-bold text-slate-900">
+                            {applicantDisplayName(app) || app.id}
+                          </p>
+                          <p className="truncate text-xs font-semibold text-slate-900">
+                            {app.typeOfMobility || "—"}
+                          </p>
+                        </div>
+                        <StatusBadge status={app.status} />
+                      </li>
+                    ))}
+                    {applications.length === 0 && (
+                      <li className="py-6 text-center text-sm font-semibold text-slate-900">
+                        No applications yet.
+                      </li>
+                    )}
+                  </ul>
+                </div>
+              </div>
+
+              <div className="grid gap-4 sm:grid-cols-3">
+                <Link
+                  href="/coordinator/users"
+                  className="rounded-xl border border-slate-200 bg-white p-5 text-left transition hover:border-[#062763]/30 hover:shadow-sm"
+                >
+                  <p className="text-2xl font-bold text-[#062763]">
+                    {userCount}
+                  </p>
+                  <p className="mt-1 text-sm font-bold text-slate-900">
+                    Dashboard users
+                  </p>
+                </Link>
+                <Link
+                  href="/coordinator/programs"
+                  className="rounded-xl border border-slate-200 bg-white p-5 text-left transition hover:border-[#062763]/30 hover:shadow-sm"
+                >
+                  <p className="text-2xl font-bold text-[#062763]">
+                    {hostInstitutions.length}
+                  </p>
+                  <p className="mt-1 text-sm font-bold text-slate-900">
+                    Partner institutions
+                  </p>
+                  <p className="text-sm font-semibold text-slate-900">
+                    {totalProgrammes} programmes listed
+                  </p>
+                </Link>
+                <Link
+                  href="/coordinator/scholars"
+                  className="rounded-xl border border-slate-200 bg-white p-5 text-left transition hover:border-[#062763]/30 hover:shadow-sm"
+                >
+                  <p className="text-2xl font-bold text-emerald-700">
+                    {scholarsCount}
+                  </p>
+                  <p className="mt-1 text-sm font-bold text-slate-900">
+                    Active scholars
+                  </p>
+                </Link>
+              </div>
+        </div>
+      </main>
+    </div>
+  );
+}

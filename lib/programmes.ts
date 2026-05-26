@@ -1,0 +1,60 @@
+export const hostInstitutions = [
+  "University of Nigeria (UNN)",
+  "University of Rwanda",
+  "University of Cape Coast",
+  "University of Sierra Leone",
+  "Lupane State University",
+  "Moi University",
+] as const;
+
+export const programmesByHostInstitution: Record<string, string[]> = {
+  "University of Nigeria (UNN)": [
+    "MSc Sustainable Energy Systems",
+    "MSc Sustainable Materials Engineering",
+    "MSc Energy Policy and Planning",
+    "MSc Climate Change and Adaptation",
+    "MSc Energy Economics and Finance",
+    "MSc Environmental Management",
+    "PhD Sustainable Energy Systems",
+    "PhD Energy Policy",
+    "PhD Climate Change Studies",
+  ],
+  "University of Rwanda": [
+    "MSc Renewable Energy Engineering",
+    "MSc Energy Policy and Governance",
+    "MSc Climate Change Mitigation",
+    "MSc Environmental Science",
+    "PhD Sustainable Energy",
+    "PhD Climate Change and Environment",
+  ],
+  "University of Cape Coast": [
+    "MSc Energy Systems Engineering",
+    "MSc Climate Change and Sustainability",
+    "MSc Environmental and Resource Economics",
+    "MSc Materials Science and Engineering",
+    "PhD Energy Economics",
+    "PhD Environmental Science",
+  ],
+  "University of Sierra Leone": [
+    "MSc Sustainable Energy",
+    "MSc Environmental Management",
+    "MSc Climate Change Studies",
+    "MSc Energy and Mineral Economics",
+    "PhD Environmental Policy",
+  ],
+  "Lupane State University": [
+    "MSc Renewable Energy Technology",
+    "MSc Environmental Management",
+    "MSc Climate Change and Development",
+    "MSc Sustainable Materials",
+    "PhD Energy Studies",
+  ],
+  "Moi University": [
+    "MSc Renewable Energy Systems",
+    "MSc Environmental Science",
+    "MSc Climate Change Adaptation",
+    "MSc Energy Economics",
+    "MSc Sustainable Materials",
+    "PhD Environmental Studies",
+  ],
+};
