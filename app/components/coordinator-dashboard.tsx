@@ -126,6 +126,7 @@ export function CoordinatorDashboard() {
   const stats = useMemo(() => {
     const counts = {
       total: applications.length,
+      draft: 0,
       pending: 0,
       under_review: 0,
       approved: 0,
