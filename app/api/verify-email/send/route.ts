@@ -32,7 +32,7 @@ export async function POST(request: Request) {
       message: mailResult.sent
         ? `A verification link has been sent to ${normalized}. Check your inbox and spam folder.`
         : mailResult.error ??
-          `SMTP is not configured. Use the verification link below to continue.`,
+          `Resend is not configured. Use the verification link below to continue.`,
       sent: mailResult.sent,
       devLink: mailResult.devLink,
     });

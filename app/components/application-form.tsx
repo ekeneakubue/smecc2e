@@ -290,6 +290,12 @@ export function ApplicationForm() {
   const searchParams = useSearchParams();
   const [currentPage, setCurrentPage] = useState(1);
   const [submitted, setSubmitted] = useState(false);
+  const [submittedApplicationId, setSubmittedApplicationId] = useState<
+    string | null
+  >(null);
+  const [confirmationEmailSent, setConfirmationEmailSent] = useState<
+    boolean | null
+  >(null);
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [isHydrated, setIsHydrated] = useState(false);
@@ -929,6 +935,10 @@ export function ApplicationForm() {
           applicationId: draftId ?? undefined,
         }),
       });
+      const data = (await res.json()) as {
+        application?: { id: string };
+        confirmationEmailSent?: boolean;
+      };
       if (!res.ok) {
         setSubmitError(
           "Your application could not be saved. Please try again or contact the coordination office."
@@ -938,6 +948,8 @@ export function ApplicationForm() {
       localStorage.removeItem(APPLICATION_ID_KEY);
       localStorage.removeItem(APPLICATION_PAGE_KEY);
       setDraftId(null);
+      setSubmittedApplicationId(data.application?.id ?? null);
+      setConfirmationEmailSent(data.confirmationEmailSent ?? null);
       setSubmitted(true);
       window.scrollTo({ top: 0, behavior: "smooth" });
     } catch {
@@ -977,15 +989,39 @@ export function ApplicationForm() {
             Application submitted
           </h2>
           <p className="mt-3 text-sm text-slate-600">
-            Thank you. Your application has been received. The coordination
-            office will contact you regarding the next steps.
+            Thank you. Your application has been received.
+            {submittedApplicationId && (
+              <>
+                {" "}
+                Your reference is{" "}
+                <span className="font-semibold text-[#062763]">
+                  {submittedApplicationId}
+                </span>
+                .
+              </>
+            )}{" "}
+            The coordination office will contact you regarding the next steps.
           </p>
+          {confirmationEmailSent === true && (
+            <p className="mt-2 text-sm text-emerald-700">
+              A confirmation email with your application details has been sent
+              to your inbox.
+            </p>
+          )}
+          {confirmationEmailSent === false && (
+            <p className="mt-2 text-sm text-amber-800">
+              We could not send a confirmation email. Please save your reference
+              number above.
+            </p>
+          )}
         </div>
         <div className="px-6 py-8 text-center sm:px-8">
           <button
             type="button"
             onClick={() => {
               setSubmitted(false);
+              setSubmittedApplicationId(null);
+              setConfirmationEmailSent(null);
               setSubmitError(null);
               setSaveError(null);
               setSaveMessage(null);

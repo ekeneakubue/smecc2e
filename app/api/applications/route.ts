@@ -4,6 +4,7 @@ import {
   listApplications,
   submitApplication,
 } from "@/lib/applications-store";
+import { sendApplicationConfirmationEmail } from "@/lib/send-application-confirmation-email";
 
 export async function GET() {
   return NextResponse.json({ applications: listApplications() });
@@ -16,7 +17,15 @@ export async function POST(request: Request) {
     };
     const { applicationId, ...payload } = body;
     const record = submitApplication(payload, applicationId);
-    return NextResponse.json({ application: record }, { status: 201 });
+    const confirmationEmail = await sendApplicationConfirmationEmail(record);
+    return NextResponse.json(
+      {
+        application: record,
+        confirmationEmailSent: confirmationEmail.sent,
+        confirmationEmailError: confirmationEmail.error,
+      },
+      { status: 201 }
+    );
   } catch {
     return NextResponse.json(
       { error: "Failed to save application" },
