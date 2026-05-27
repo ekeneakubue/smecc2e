@@ -245,3 +245,24 @@ model Program {
   @@unique([universityId, name, type])
   @@map("programs")
 }
+
+/// One-time email verification link for application registration (stage 2)
+model EmailVerificationToken {
+  id        String   @id @default(cuid())
+  token     String   @unique
+  email     String
+  expiresAt DateTime @map("expires_at")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([email])
+  @@index([expiresAt])
+  @@map("email_verification_tokens")
+}
+
+/// Applicant emails that completed verification (survives server restarts)
+model VerifiedApplicantEmail {
+  email      String   @id
+  verifiedAt DateTime @default(now()) @map("verified_at")
+
+  @@map("verified_applicant_emails")
+}

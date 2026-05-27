@@ -17,8 +17,7 @@ export async function GET(request: Request) {
   const normalized = normalizeEmail(email);
   const cookieEmail = await getVerifiedEmailFromCookie();
   const verified =
-    isEmailVerified(normalized) ||
-    cookieEmail === normalized;
+    (await isEmailVerified(normalized)) || cookieEmail === normalized;
 
   return NextResponse.json({ verified, email: normalized });
 }

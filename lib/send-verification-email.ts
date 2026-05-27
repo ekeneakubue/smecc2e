@@ -3,11 +3,17 @@ import {
   emailLayout,
   escapeHtml,
 } from "./email-layout";
+import { VERIFICATION_TOKEN_TTL_HOURS } from "./email-verification-store";
 import {
   getEmailFrom,
   getResendClient,
   type SendEmailResult,
 } from "./resend-client";
+
+function verificationExpiryLabel(): string {
+  const hours = VERIFICATION_TOKEN_TTL_HOURS;
+  return hours === 1 ? "1 hour" : `${hours} hours`;
+}
 
 export function getAppBaseUrl(): string {
   return (
@@ -47,7 +53,7 @@ export async function sendVerificationEmail(
       <a href="${escapeHtml(verifyUrl)}" style="color:#062763;word-break:break-all;">${escapeHtml(verifyUrl)}</a>
     </p>
     <p style="margin:20px 0 0;font-size:12px;color:#94a3b8;">
-      This link expires in 24 hours. If you did not request this, you can ignore this email.
+      This link expires in ${verificationExpiryLabel()}. If you did not request this, you can ignore this email.
     </p>
   `;
 
@@ -57,7 +63,7 @@ export async function sendVerificationEmail(
     "Please verify your email address by opening the link below:",
     verifyUrl,
     "",
-    "This link expires in 24 hours.",
+    `This link expires in ${verificationExpiryLabel()}.`,
     "",
     "If you did not request this, you can ignore this email.",
   ].join("\n");

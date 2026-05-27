@@ -22,7 +22,7 @@ export async function POST(request: Request) {
     }
 
     const normalized = normalizeEmail(email);
-    const { token } = createVerificationToken(normalized);
+    const { token } = await createVerificationToken(normalized);
     const verifyUrl = buildVerificationUrl(token);
     const mailResult = await sendVerificationEmail(normalized, verifyUrl);
 

@@ -16,7 +16,7 @@ export async function GET(request: Request) {
     );
   }
 
-  const result = consumeVerificationToken(token);
+  const result = await consumeVerificationToken(token);
   if ("error" in result) {
     return NextResponse.json({ error: result.error }, { status: 400 });
   }

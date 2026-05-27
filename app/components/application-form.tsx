@@ -3,6 +3,7 @@
 import Image from "next/image";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { GuidelinesPdfViewer } from "./guidelines-pdf-viewer";
 import type { ApplicationRecord } from "@/lib/application-types";
 import type { ProgramRecord, ProgramTypeLabel } from "@/lib/academic-program";
 import {
@@ -14,6 +15,7 @@ import {
 const TOTAL_PAGES = 18;
 const APPLICATION_ID_KEY = "smecc2e_application_id";
 const APPLICATION_PAGE_KEY = "smecc2e_application_page";
+const APPLICATION_GUIDELINE_PDF = "/files/AplicationGuideline.pdf";
 
 const pageTitles: Record<number, string> = {
   1: "Instructions",
@@ -40,9 +42,10 @@ const mobilityTypes = [
   "MSc Degree-Seeking (24 Months)",
   "PhD Degree-Seeking (36 Months)",
   "MSc Credit-Seeking (6 Months)", 
+  "PhD Credit-Seeking (9 Months)",
   "PhD Credit-Seeking (6 Months)",
-  "Traineeship Mobility (6 Months)",
-  "Staff Mobility (6 Months)",
+  "Traineeship Mobility (3 Months)",
+  "Staff Mobility (1 Months)",
 ];
 
 const hostInstitutionOptions = [
@@ -3897,6 +3900,17 @@ function InstructionsPanel({
   accepted: boolean;
   onAcceptedChange: (value: boolean) => void;
 }) {
+  const [guidelinesOpen, setGuidelinesOpen] = useState(false);
+  const [guidelinesEngaged, setGuidelinesEngaged] = useState(false);
+
+  const markGuidelinesEngaged = useCallback(() => {
+    setGuidelinesEngaged(true);
+  }, []);
+
+  const openGuidelines = () => {
+    setGuidelinesOpen(true);
+  };
+
   return (
     <div className="space-y-6 text-sm leading-7 text-slate-600 sm:space-y-8 sm:text-base">
       <div>
@@ -3993,19 +4007,87 @@ function InstructionsPanel({
         </p>
       </div>
 
+      <div className="space-y-3 border-t border-slate-200 pt-6 text-center">
+        <p className="text-base font-black uppercase tracking-wide text-red-600 sm:text-lg">
+          Application guidelines
+        </p>
+        <button
+          type="button"
+          onClick={() =>
+            guidelinesOpen ? setGuidelinesOpen(false) : openGuidelines()
+          }
+          className="mx-auto inline-flex items-center justify-center gap-2 text-base font-black text-red-600 underline decoration-red-400 underline-offset-4 hover:text-red-700 sm:text-lg"
+          aria-expanded={guidelinesOpen}
+          aria-controls="application-guidelines-panel"
+        >
+          {guidelinesOpen ? "Hide application guidelines" : "View application guidelines (PDF)"}
+          <svg
+            className={`h-4 w-4 shrink-0 transition-transform ${guidelinesOpen ? "rotate-180" : ""}`}
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+            strokeWidth={2}
+            aria-hidden
+          >
+            <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+          </svg>
+        </button>
+
+        {guidelinesOpen && (
+          <div
+            id="application-guidelines-panel"
+            className="overflow-hidden rounded-lg border-2 border-slate-200 bg-white shadow-sm"
+          >
+            <GuidelinesPdfViewer
+              src={APPLICATION_GUIDELINE_PDF}
+              onScrolledToEnd={markGuidelinesEngaged}
+            />
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-2 border-t border-slate-200 bg-slate-50 px-4 py-3 text-xs text-slate-600">
+              <span>Or access the PDF directly:</span>
+              <a
+                href={APPLICATION_GUIDELINE_PDF}
+                download="SMECC2E-Application-Guidelines.pdf"
+                onClick={markGuidelinesEngaged}
+                className="font-semibold text-[#062763] underline hover:text-[#0a3a8a]"
+              >
+                Download guidelines
+              </a>
+              <a
+                href={APPLICATION_GUIDELINE_PDF}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={markGuidelinesEngaged}
+                className="font-semibold text-[#062763] underline hover:text-[#0a3a8a]"
+              >
+                Open in browser
+              </a>
+            </div>
+          </div>
+        )}
+      </div>
+
       <div className={fieldOptionsBoxClass}>
-        <label className={fieldOptionLabelClass}>
+        <label
+          className={`${fieldOptionLabelClass} ${!guidelinesEngaged ? "opacity-60" : ""}`}
+        >
           <input
             type="checkbox"
             checked={accepted}
+            disabled={!guidelinesEngaged}
             onChange={(e) => onAcceptedChange(e.target.checked)}
-            className="mt-1 h-4 w-4 shrink-0 rounded accent-[#062763]"
+            className="mt-1 h-4 w-4 shrink-0 rounded accent-[#062763] disabled:cursor-not-allowed"
           />
           <span>
-            I have read and accept the instructions
+            I have read the guidelines for application
             <span className="text-red-600"> *</span>
           </span>
         </label>
+        {!guidelinesEngaged && (
+          <p className="mt-2 text-xs font-medium text-slate-600">
+            Scroll through the full guidelines above, or use download / open in browser,
+            before confirming that you have read them.
+          </p>
+        )}
       </div>
     </div>
   );

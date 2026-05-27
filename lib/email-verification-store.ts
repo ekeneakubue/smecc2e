@@ -1,4 +1,5 @@
 import { randomBytes } from "crypto";
+import { prisma } from "./prisma";
 
 export type VerificationToken = {
   token: string;
@@ -7,26 +8,13 @@ export type VerificationToken = {
   expiresAt: string;
 };
 
-const TOKEN_TTL_MS = 24 * 60 * 60 * 1000;
+/** Verification links remain valid for 24 hours (override with VERIFICATION_TOKEN_TTL_HOURS). */
+export const VERIFICATION_TOKEN_TTL_MS =
+  (Number(process.env.VERIFICATION_TOKEN_TTL_HOURS) || 24) * 60 * 60 * 1000;
 
-const globalStore = globalThis as typeof globalThis & {
-  __smecc2eVerificationTokens?: Map<string, VerificationToken>;
-  __smecc2eVerifiedEmails?: Set<string>;
-};
-
-function tokens(): Map<string, VerificationToken> {
-  if (!globalStore.__smecc2eVerificationTokens) {
-    globalStore.__smecc2eVerificationTokens = new Map();
-  }
-  return globalStore.__smecc2eVerificationTokens;
-}
-
-function verifiedEmails(): Set<string> {
-  if (!globalStore.__smecc2eVerifiedEmails) {
-    globalStore.__smecc2eVerifiedEmails = new Set();
-  }
-  return globalStore.__smecc2eVerifiedEmails;
-}
+export const VERIFICATION_TOKEN_TTL_HOURS = Math.round(
+  VERIFICATION_TOKEN_TTL_MS / (60 * 60 * 1000)
+);
 
 export function normalizeEmail(email: string): string {
   return email.trim().toLowerCase();
@@ -36,47 +24,83 @@ export function isValidEmail(email: string): boolean {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizeEmail(email));
 }
 
-export function createVerificationToken(email: string): VerificationToken {
+export async function createVerificationToken(
+  email: string
+): Promise<VerificationToken> {
   const normalized = normalizeEmail(email);
   const now = Date.now();
-  const record: VerificationToken = {
-    token: randomBytes(32).toString("hex"),
+  const token = randomBytes(32).toString("hex");
+  const expiresAt = new Date(now + VERIFICATION_TOKEN_TTL_MS);
+
+  await prisma.$transaction([
+    prisma.emailVerificationToken.deleteMany({ where: { email: normalized } }),
+    prisma.emailVerificationToken.create({
+      data: {
+        token,
+        email: normalized,
+        expiresAt,
+      },
+    }),
+  ]);
+
+  return {
+    token,
     email: normalized,
     createdAt: new Date(now).toISOString(),
-    expiresAt: new Date(now + TOKEN_TTL_MS).toISOString(),
+    expiresAt: expiresAt.toISOString(),
   };
-
-  for (const [key, value] of tokens()) {
-    if (value.email === normalized) tokens().delete(key);
-  }
-
-  tokens().set(record.token, record);
-  return record;
 }
 
-export function consumeVerificationToken(
+export async function consumeVerificationToken(
   token: string
-): { email: string } | { error: string } {
-  const record = tokens().get(token);
-  if (!record) return { error: "Invalid or expired verification link." };
-  if (new Date(record.expiresAt).getTime() < Date.now()) {
-    tokens().delete(token);
-    return { error: "This verification link has expired. Please request a new one." };
+): Promise<{ email: string } | { error: string }> {
+  const record = await prisma.emailVerificationToken.findUnique({
+    where: { token },
+  });
+
+  if (!record) {
+    return { error: "Invalid or expired verification link." };
   }
 
-  tokens().delete(token);
-  verifiedEmails().add(record.email);
+  if (record.expiresAt.getTime() < Date.now()) {
+    await prisma.emailVerificationToken.delete({ where: { token } }).catch(() => {});
+    return {
+      error: "This verification link has expired. Please request a new one.",
+    };
+  }
+
+  await prisma.$transaction([
+    prisma.emailVerificationToken.delete({ where: { token } }),
+    prisma.verifiedApplicantEmail.upsert({
+      where: { email: record.email },
+      create: { email: record.email },
+      update: { verifiedAt: new Date() },
+    }),
+  ]);
+
   return { email: record.email };
 }
 
-export function isEmailVerified(email: string): boolean {
-  return verifiedEmails().has(normalizeEmail(email));
+export async function isEmailVerified(email: string): Promise<boolean> {
+  const normalized = normalizeEmail(email);
+  const row = await prisma.verifiedApplicantEmail.findUnique({
+    where: { email: normalized },
+  });
+  return Boolean(row);
 }
 
-export function markEmailVerified(email: string): void {
-  verifiedEmails().add(normalizeEmail(email));
+export async function markEmailVerified(email: string): Promise<void> {
+  const normalized = normalizeEmail(email);
+  await prisma.verifiedApplicantEmail.upsert({
+    where: { email: normalized },
+    create: { email: normalized },
+    update: { verifiedAt: new Date() },
+  });
 }
 
-export function revokeEmailVerification(email: string): void {
-  verifiedEmails().delete(normalizeEmail(email));
+export async function revokeEmailVerification(email: string): Promise<void> {
+  const normalized = normalizeEmail(email);
+  await prisma.verifiedApplicantEmail.deleteMany({
+    where: { email: normalized },
+  });
 }
