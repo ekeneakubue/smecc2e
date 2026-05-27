@@ -1,10 +1,7 @@
 import Image from "next/image";
-import { brandLogoAltFromPath, getBrandLogoPublicPaths } from "@/lib/brand-logos";
 import { SiteFooter } from "./components/site-footer";
 
 export default function Home() {
-  const brandPaths = getBrandLogoPublicPaths();
-
   return (
     <main className="flex h-dvh flex-col overflow-hidden bg-white text-slate-800">
       <header className="z-50 shrink-0 border-b border-white/10 bg-[#062763] text-white">
@@ -18,17 +15,16 @@ export default function Home() {
 
       <section className="relative flex-1 overflow-hidden border-b border-white/10 bg-[#062763] text-white">
         <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(255,255,255,0.18),transparent_34%),radial-gradient(circle_at_bottom_right,rgba(247,190,42,0.2),transparent_30%)]" />
-        <div className="relative mx-auto flex h-full max-w-7xl items-center px-4 py-3 sm:px-8 sm:py-4">
-          <div className="grid w-full items-center gap-5 lg:grid-cols-2 lg:gap-9">
-            <div className="text-center lg:text-left">
-              <p className="mb-2 inline-block rounded-full border border-[#f7be2a]/40 bg-[#f7be2a]/15 px-2.5 py-1 text-[0.58rem] font-bold uppercase leading-snug tracking-[0.08em] text-[#f7d46b] sm:mb-3 sm:px-3 sm:text-[0.62rem] sm:tracking-[0.1em]">
+        <div className="relative mx-auto flex h-full max-w-7xl items-center justify-center px-4 py-3 text-center sm:px-8 sm:py-4">
+          <div className="w-full max-w-7xl">
+            <div>
+              <p className="mb-2 inline-block rounded-full border border-[#f7be2a]/40 bg-[#f7be2a]/15 px-2.5 py-1 text-[1rem] font-bold uppercase leading-snug tracking-[0.08em] text-[#f7d46b] sm:mb-3 sm:px-3 sm:text-[0.62rem] sm:tracking-[0.1em]">
                 EU-Supported Capacity Building Programme
               </p>
-              <h1 className="text-balance text-xl font-black leading-tight text-white sm:text-2xl lg:text-2xl">
-                Sustainable Energy &amp; Materials, Energy Policy, Climate
-                Change, Energy Economics and Environment (SMECC2E)
+              <h1 className="text-balance text-xl font-black leading-tight text-white sm:text-2xl lg:text-6xl">
+                SMECC2E Integrated Mobility, Scholarship, Project & Knowledge Management Portal
               </h1>
-              <p className="mx-auto mt-2 max-w-xl text-xs leading-5 text-blue-50/90 sm:mt-3 sm:text-sm sm:leading-6 lg:mx-0 lg:max-w-none">
+              <p className="mx-auto mt-2 max-w-xl text-lg leading-5 text-blue-50/90 sm:mt-3 sm:text-sm sm:leading-6">
                 A secure, auditable, and scalable integrated portal for
                 scholarships, mobility, academic tracking, financial
                 accountability, reporting, and dissemination across the
@@ -41,35 +37,6 @@ export default function Home() {
                 Start Application
               </a>
             </div>
-
-            {brandPaths.length > 0 && (
-              <div className="mx-auto w-full max-w-sm lg:mx-0 lg:max-w-none">
-                <p className="mb-2 text-center text-[10px] font-bold uppercase tracking-[0.12em] text-[#f7be2a] sm:text-[11px] sm:tracking-[0.14em] lg:text-left">
-                  Partner brands
-                </p>
-                <div
-                  className="grid grid-cols-4 gap-1.5 sm:gap-2"
-                  aria-label="Partner organisations"
-                >
-                  {brandPaths.map((src) => (
-                    <div
-                      key={src}
-                      className="flex aspect-square items-center justify-center rounded-md p-1 sm:rounded-lg"
-                    >
-                      <div className="relative h-6 w-6 sm:h-7 sm:w-7 md:h-30 md:w-30">
-                        <Image
-                          src={src}
-                          alt={brandLogoAltFromPath(src)}
-                          fill
-                          className="object-contain object-center contrast-[1.06] saturate-[1.08] drop-shadow-[0_2px_6px_rgba(0,0,0,0.55)]"
-                          sizes="(max-width: 640px) 24px, (max-width: 1024px) 28px, 32px"
-                        />
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
           </div>
         </div>
       </section>
