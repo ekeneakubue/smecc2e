@@ -276,8 +276,11 @@ export function CoordinatorInstitutions() {
                         <li className="text-slate-500">No programmes listed</li>
                       ) : (
                         <>
-                          {programmes.slice(0, 4).map((p) => (
-                            <li key={p} className="line-clamp-1">
+                          {programmes.slice(0, 4).map((p, idx) => (
+                            <li
+                              key={`${university.id}-${p}-${idx}`}
+                              className="line-clamp-1"
+                            >
                               {p}
                             </li>
                           ))}

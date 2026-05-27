@@ -3,20 +3,29 @@ import type { ApplicationPayload } from "@/lib/application-types";
 import {
   findDraftByEmail,
   upsertDraftApplication,
-} from "@/lib/applications-store";
+} from "@/lib/applications-service";
+import { toUserFacingDatabaseError } from "@/lib/prisma-errors";
 
 export async function GET(request: Request) {
-  const email = new URL(request.url).searchParams.get("email")?.trim();
-  if (!email) {
-    return NextResponse.json({ error: "Email is required" }, { status: 400 });
-  }
+  try {
+    const email = new URL(request.url).searchParams.get("email")?.trim();
+    if (!email) {
+      return NextResponse.json({ error: "Email is required" }, { status: 400 });
+    }
 
-  const application = findDraftByEmail(email);
-  if (!application) {
-    return NextResponse.json({ application: null });
+    const application = await findDraftByEmail(email);
+    return NextResponse.json({ application });
+  } catch (err) {
+    console.error("GET /api/applications/draft", err);
+    const connectionError = toUserFacingDatabaseError(err);
+    return NextResponse.json(
+      {
+        error:
+          connectionError ?? "Failed to load application draft from database",
+      },
+      { status: connectionError ? 503 : 500 }
+    );
   }
-
-  return NextResponse.json({ application });
 }
 
 export async function POST(request: Request) {
@@ -33,11 +42,16 @@ export async function POST(request: Request) {
     }
 
     const { currentPage: _page, ...payload } = body;
-    const application = upsertDraftApplication(payload, currentPage);
+    const application = await upsertDraftApplication(payload, currentPage);
     return NextResponse.json({ application });
   } catch (err) {
+    console.error("POST /api/applications/draft", err);
+    const connectionError = toUserFacingDatabaseError(err);
     const message =
       err instanceof Error ? err.message : "Failed to save application draft";
-    return NextResponse.json({ error: message }, { status: 400 });
+    return NextResponse.json(
+      { error: connectionError ?? message },
+      { status: connectionError ? 503 : 400 }
+    );
   }
 }

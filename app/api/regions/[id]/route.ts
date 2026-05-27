@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
-import type { DashboardUser } from "@/lib/dashboard-users";
 import { AuthError, requireCoordinatorSessionUser } from "@/lib/auth-service";
 import { toUserFacingDatabaseError } from "@/lib/prisma-errors";
-import { deleteUser, updateUser } from "@/lib/users-service";
+import { parseCountriesInput } from "@/lib/regions";
+import { deleteRegion, updateRegion } from "@/lib/regions-service";
 
 type RouteContext = { params: Promise<{ id: string }> };
 
@@ -12,41 +12,29 @@ export async function PATCH(request: Request, context: RouteContext) {
     const { id } = await context.params;
     const body = (await request.json()) as {
       name?: string;
-      email?: string;
-      phoneNumber?: string;
-      password?: string;
-      institution?: string;
-      profileImageUrl?: string | null;
-      role?: DashboardUser["role"];
-      status?: DashboardUser["status"];
+      countries?: string[];
+      countriesText?: string;
     };
 
-    const role = body.role ?? "Coordinator";
-    const status = body.status ?? "Active";
-
-    if (
-      role !== "Coordinator" &&
-      role !== "Reviewer" &&
-      role !== "Administrator"
-    ) {
-      return NextResponse.json({ error: "Invalid role" }, { status: 400 });
-    }
-    if (status !== "Active" && status !== "Inactive") {
-      return NextResponse.json({ error: "Invalid status" }, { status: 400 });
+    const name = body.name?.trim();
+    if (!name) {
+      return NextResponse.json(
+        { error: "Region name is required" },
+        { status: 400 }
+      );
     }
 
-    const { users } = await updateUser(id, {
-      name: body.name ?? "",
-      email: body.email ?? "",
-      phoneNumber: body.phoneNumber ?? "",
-      institution: body.institution ?? "",
-      profileImageUrl: body.profileImageUrl ?? null,
-      role,
-      status,
-      password: body.password,
+    const countries = Array.isArray(body.countries)
+      ? body.countries
+      : body.countriesText
+        ? parseCountriesInput(body.countriesText)
+        : [];
+
+    const { regions } = await updateRegion(id, name, countries);
+    return NextResponse.json({
+      regions,
+      regionNames: regions.map((r) => r.name),
     });
-
-    return NextResponse.json({ users });
   } catch (err) {
     if (err instanceof AuthError) {
       return NextResponse.json(
@@ -54,19 +42,19 @@ export async function PATCH(request: Request, context: RouteContext) {
         { status: err.status }
       );
     }
-    console.error("PATCH /api/users/[id]", err);
+    console.error("PATCH /api/regions/[id]", err);
     const connectionError = toUserFacingDatabaseError(err);
     if (connectionError) {
       return NextResponse.json({ error: connectionError }, { status: 503 });
     }
     const message =
-      err instanceof Error ? err.message : "Failed to update user";
+      err instanceof Error ? err.message : "Failed to update region";
     const status =
-      message === "User not found"
+      message === "Region not found"
         ? 404
         : message.includes("already exists")
           ? 409
-          : 400;
+          : 500;
     return NextResponse.json({ error: message }, { status });
   }
 }
@@ -75,8 +63,11 @@ export async function DELETE(_request: Request, context: RouteContext) {
   try {
     await requireCoordinatorSessionUser();
     const { id } = await context.params;
-    const { users } = await deleteUser(id);
-    return NextResponse.json({ users });
+    const { regions } = await deleteRegion(id);
+    return NextResponse.json({
+      regions,
+      regionNames: regions.map((r) => r.name),
+    });
   } catch (err) {
     if (err instanceof AuthError) {
       return NextResponse.json(
@@ -84,14 +75,14 @@ export async function DELETE(_request: Request, context: RouteContext) {
         { status: err.status }
       );
     }
-    console.error("DELETE /api/users/[id]", err);
+    console.error("DELETE /api/regions/[id]", err);
     const connectionError = toUserFacingDatabaseError(err);
     if (connectionError) {
       return NextResponse.json({ error: connectionError }, { status: 503 });
     }
     const message =
-      err instanceof Error ? err.message : "Failed to delete user";
-    const status = message === "User not found" ? 404 : 400;
+      err instanceof Error ? err.message : "Failed to delete region";
+    const status = message === "Region not found" ? 404 : 500;
     return NextResponse.json({ error: message }, { status });
   }
 }

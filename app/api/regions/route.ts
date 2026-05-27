@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { AuthError, requireCoordinatorSessionUser } from "@/lib/auth-service";
 import { toUserFacingDatabaseError } from "@/lib/prisma-errors";
 import { parseCountriesInput } from "@/lib/regions";
 import { createRegion, listRegions } from "@/lib/regions-service";
@@ -24,6 +25,7 @@ export async function GET() {
 
 export async function POST(request: Request) {
   try {
+    await requireCoordinatorSessionUser();
     const body = (await request.json()) as {
       name?: string;
       countries?: string[];
@@ -50,6 +52,12 @@ export async function POST(request: Request) {
       { status: 201 }
     );
   } catch (err) {
+    if (err instanceof AuthError) {
+      return NextResponse.json(
+        { error: err.status === 403 ? "Forbidden" : "Unauthorized" },
+        { status: err.status }
+      );
+    }
     console.error("POST /api/regions", err);
     const connectionError = toUserFacingDatabaseError(err);
     if (connectionError) {

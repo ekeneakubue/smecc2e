@@ -1,13 +1,21 @@
 import { NextResponse } from "next/server";
 import type { DashboardUser } from "@/lib/dashboard-users";
+import { AuthError, requireCoordinatorSessionUser } from "@/lib/auth-service";
 import { toUserFacingDatabaseError } from "@/lib/prisma-errors";
 import { createUser, listUsers } from "@/lib/users-service";
 
 export async function GET() {
   try {
+    await requireCoordinatorSessionUser();
     const users = await listUsers();
     return NextResponse.json({ users });
   } catch (err) {
+    if (err instanceof AuthError) {
+      return NextResponse.json(
+        { error: err.status === 403 ? "Forbidden" : "Unauthorized" },
+        { status: err.status }
+      );
+    }
     console.error("GET /api/users", err);
     const connectionError = toUserFacingDatabaseError(err);
     return NextResponse.json(
@@ -22,6 +30,7 @@ export async function GET() {
 
 export async function POST(request: Request) {
   try {
+    await requireCoordinatorSessionUser();
     const body = (await request.json()) as {
       name?: string;
       email?: string;
@@ -60,6 +69,12 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ users }, { status: 201 });
   } catch (err) {
+    if (err instanceof AuthError) {
+      return NextResponse.json(
+        { error: err.status === 403 ? "Forbidden" : "Unauthorized" },
+        { status: err.status }
+      );
+    }
     console.error("POST /api/users", err);
     const connectionError = toUserFacingDatabaseError(err);
     if (connectionError) {

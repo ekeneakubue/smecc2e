@@ -675,6 +675,37 @@ export function ApplicationForm() {
   }, [searchParams, router]);
 
   useEffect(() => {
+    if (!isHydrated) return;
+    let cancelled = false;
+    void (async () => {
+      try {
+        const res = await fetch("/api/verify-email/session", {
+          cache: "no-store",
+        });
+        if (!res.ok || cancelled) return;
+        const data = (await res.json()) as { email?: string | null };
+        const sessionEmail = data.email?.trim();
+        if (!sessionEmail) return;
+        setForm((prev) => {
+          const cur = prev.email.trim();
+          if (cur && cur.toLowerCase() !== sessionEmail.toLowerCase()) {
+            return prev;
+          }
+          if (cur.toLowerCase() === sessionEmail.toLowerCase()) {
+            return prev;
+          }
+          return { ...prev, email: sessionEmail };
+        });
+      } catch {
+        /* ignore */
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [isHydrated]);
+
+  useEffect(() => {
     if (!isHydrated || !form.email.trim()) return;
     checkEmailVerified(form.email);
   }, [form.email, checkEmailVerified, isHydrated]);
@@ -938,10 +969,12 @@ export function ApplicationForm() {
       const data = (await res.json()) as {
         application?: { id: string };
         confirmationEmailSent?: boolean;
+        error?: string;
       };
       if (!res.ok) {
         setSubmitError(
-          "Your application could not be saved. Please try again or contact the coordination office."
+          data.error ??
+            "Your application could not be saved. Please try again or contact the coordination office."
         );
         return;
       }
@@ -1749,9 +1782,14 @@ function RegistrationPanel({
           required
           label="Email address for verification"
           type="email"
-          description="This is your primary contact email for the application."
+          description={
+            emailVerified
+              ? "This email is verified and cannot be changed."
+              : "This is your primary contact email for the application."
+          }
           value={form.email}
           onChange={(v) => update("email", v)}
+          disabled={emailVerified}
         />
         <div className="mt-4 flex flex-wrap items-center gap-3">
           <button

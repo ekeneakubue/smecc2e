@@ -99,10 +99,37 @@ export function CoordinatorSidebar({
   const searchParams = useSearchParams();
   const [isHydrated, setIsHydrated] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [sessionUser, setSessionUser] = useState<{
+    name: string;
+    role: string;
+  } | null>(null);
+  const [loggingOut, setLoggingOut] = useState(false);
 
   useEffect(() => {
     setIsHydrated(true);
   }, []);
+
+  useEffect(() => {
+    fetch("/api/auth/me")
+      .then(async (res) => {
+        if (!res.ok) return;
+        const data = (await res.json()) as {
+          user?: { name: string; role: string };
+        };
+        if (data.user) setSessionUser(data.user);
+      })
+      .catch(() => undefined);
+  }, []);
+
+  const handleLogout = async () => {
+    setLoggingOut(true);
+    try {
+      await fetch("/api/auth/logout", { method: "POST" });
+      window.location.href = "/login";
+    } finally {
+      setLoggingOut(false);
+    }
+  };
 
   const section = isHydrated ? searchParams.get("section") : null;
 
@@ -178,6 +205,25 @@ export function CoordinatorSidebar({
         </nav>
 
         <div className="space-y-2 border-t border-white/10 px-4 py-4">
+          {sessionUser && (
+            <div className="rounded-lg bg-white/10 px-3 py-2.5">
+              <p className="truncate text-sm font-semibold text-white">
+                {sessionUser.name}
+              </p>
+              <p className="text-xs text-[#f7be2a]">{sessionUser.role}</p>
+            </div>
+          )}
+          <button
+            type="button"
+            onClick={() => {
+              close();
+              void handleLogout();
+            }}
+            disabled={loggingOut}
+            className="block w-full rounded-lg border border-[#f7be2a]/50 px-3 py-2 text-center text-xs font-semibold text-[#f7be2a] transition hover:bg-[#f7be2a] hover:text-[#062763] disabled:opacity-50"
+          >
+            {loggingOut ? "Signing out…" : "Sign out"}
+          </button>
           <Link
             href="/application"
             onClick={close}

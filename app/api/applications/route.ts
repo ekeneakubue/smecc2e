@@ -1,13 +1,35 @@
 import { NextResponse } from "next/server";
 import type { ApplicationPayload } from "@/lib/application-types";
+import { AuthError, requireCoordinatorSessionUser } from "@/lib/auth-service";
 import {
   listApplications,
   submitApplication,
-} from "@/lib/applications-store";
+} from "@/lib/applications-service";
+import { toUserFacingDatabaseError } from "@/lib/prisma-errors";
 import { sendApplicationConfirmationEmail } from "@/lib/send-application-confirmation-email";
 
 export async function GET() {
-  return NextResponse.json({ applications: listApplications() });
+  try {
+    await requireCoordinatorSessionUser();
+    const applications = await listApplications();
+    return NextResponse.json({ applications });
+  } catch (err) {
+    if (err instanceof AuthError) {
+      return NextResponse.json(
+        { error: err.status === 403 ? "Forbidden" : "Unauthorized" },
+        { status: err.status }
+      );
+    }
+    console.error("GET /api/applications", err);
+    const connectionError = toUserFacingDatabaseError(err);
+    return NextResponse.json(
+      {
+        error:
+          connectionError ?? "Failed to load applications from database",
+      },
+      { status: connectionError ? 503 : 500 }
+    );
+  }
 }
 
 export async function POST(request: Request) {
@@ -16,7 +38,7 @@ export async function POST(request: Request) {
       applicationId?: string;
     };
     const { applicationId, ...payload } = body;
-    const record = submitApplication(payload, applicationId);
+    const record = await submitApplication(payload, applicationId);
     const confirmationEmail = await sendApplicationConfirmationEmail(record);
     return NextResponse.json(
       {
@@ -26,10 +48,18 @@ export async function POST(request: Request) {
       },
       { status: 201 }
     );
-  } catch {
+  } catch (err) {
+    console.error("POST /api/applications", err);
+    const connectionError = toUserFacingDatabaseError(err);
     return NextResponse.json(
-      { error: "Failed to save application" },
-      { status: 500 }
+      {
+        error:
+          connectionError ??
+          (err instanceof Error
+            ? err.message
+            : "Failed to save application"),
+      },
+      { status: connectionError ? 503 : 500 }
     );
   }
 }
