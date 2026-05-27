@@ -48,6 +48,16 @@ const mobilityTypes = [
   "Staff Mobility (1 Months)",
 ];
 
+const refereeRelationshipOptions = [
+  "Spouse",
+  "Sibling",
+  "Parent",
+  "Friend",
+  "Colleague",
+  "Neighbour",
+  "Others",
+];
+
 const hostInstitutionOptions = [
   "University of Nigeria (UNN)",
   "University of Rwanda",
@@ -187,12 +197,6 @@ const initialForm = {
   dataProtectionConsent: false,
   applicantSignature: "",
 };
-
-const homeInstructionLanguageOptions = [
-  "Option 1",
-  "Option 2",
-  "Option 3",
-] as const;
 
 const traineeIndustrySectorOptions = [
   "Renewable Energy",
@@ -3056,18 +3060,16 @@ function SectionKLanguagePanel({
         </h3>
       </div>
 
-      <MultipleChoice
+      <ShortAnswer
         required
         label="Language of Instruction at Home Institution"
-        name="homeInstructionLanguage"
-        options={[...homeInstructionLanguageOptions]}
         value={form.homeInstructionLanguage}
         onChange={(v) => update("homeInstructionLanguage", v)}
       />
 
       <MultipleChoice
         required
-        label="Do you possess language proficiency certificates?"
+        label="Do you possess an English language proficiency certification?"
         name="hasLanguageProficiencyCertificate"
         options={["Yes", "No"]}
         value={form.hasLanguageProficiencyCertificate}
@@ -3133,11 +3135,13 @@ function SectionLReferencesPanel({
             value={form.referee1Name}
             onChange={(v) => update("referee1Name", v)}
           />
-          <ShortAnswer
+          <SelectField
             required
             label="Relationship with Referee 1"
             value={form.referee1Relationship}
             onChange={(v) => update("referee1Relationship", v)}
+            options={refereeRelationshipOptions}
+            placeholder="Select relationship"
           />
           <ShortAnswer
             label="Position of Referee 1"
@@ -3177,10 +3181,12 @@ function SectionLReferencesPanel({
             value={form.referee2Name}
             onChange={(v) => update("referee2Name", v)}
           />
-          <ShortAnswer
+          <SelectField
             label="Relationship with Referee 2"
             value={form.referee2Relationship}
             onChange={(v) => update("referee2Relationship", v)}
+            options={refereeRelationshipOptions}
+            placeholder="Select relationship"
           />
           <ShortAnswer
             label="Position of Referee 2"
