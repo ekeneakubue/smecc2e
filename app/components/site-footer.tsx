@@ -16,6 +16,7 @@ export function SiteFooter() {
               width={380}
               height={80}
               className="h-auto w-auto max-h-16 object-contain sm:max-h-20"
+              style={{ width: "auto", height: "auto" }}
             />
           </div>
           <Link

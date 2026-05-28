@@ -16,6 +16,11 @@ export const metadata: Metadata = {
   title: "SMECC2E",
   description:
     "Sustainable Energy & Materials, Energy Policy, Climate Change, Energy Economics and Environment.",
+  icons: {
+    icon: "/favicon.ico",
+    shortcut: "/favicon.ico",
+    apple: "/favicon.ico",
+  },
 };
 
 export default function RootLayout({
