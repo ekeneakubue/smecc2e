@@ -4227,6 +4227,7 @@ function ShortAnswer({
       <input
         type={inputType}
         inputMode={inputMode}
+        pattern={numericOnly ? "[0-9.]*" : undefined}
         required={required}
         value={value}
         disabled={disabled}
@@ -4234,6 +4235,35 @@ function ShortAnswer({
           onChange(
             numericOnly ? filterNumericDecimalInput(e.target.value) : e.target.value
           )
+        }
+        onKeyDown={
+          numericOnly
+            ? (e) => {
+                const control = [
+                  "Backspace",
+                  "Delete",
+                  "Tab",
+                  "ArrowLeft",
+                  "ArrowRight",
+                  "Home",
+                  "End",
+                ];
+                if (control.includes(e.key) || e.ctrlKey || e.metaKey) return;
+                if (e.key === "." && !value.includes(".")) return;
+                if (/^\d$/.test(e.key)) return;
+                e.preventDefault();
+              }
+            : undefined
+        }
+        onPaste={
+          numericOnly
+            ? (e) => {
+                e.preventDefault();
+                onChange(
+                  filterNumericDecimalInput(e.clipboardData.getData("text"))
+                );
+              }
+            : undefined
         }
         className={`${fieldInputClass} ${disabled ? "cursor-not-allowed opacity-60" : ""}`}
       />

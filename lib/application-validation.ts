@@ -21,6 +21,10 @@ function isValidEmail(value: string): boolean {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim());
 }
 
+function isValidNumericCgpa(value: string): boolean {
+  return /^\d+(\.\d+)?$/.test(value.trim());
+}
+
 function requireField(
   errors: string[],
   condition: boolean,
@@ -94,11 +98,19 @@ export function validateApplicationForSubmit(
 
   if (payload.eduBachelor) {
     requireField(errors, isNonEmpty(payload.bachelorProgrammeUniversity), "Bachelor programme & university");
-    requireField(errors, isNonEmpty(payload.bachelorCgpa), "Bachelor CGPA");
+    requireField(
+      errors,
+      isNonEmpty(payload.bachelorCgpa) && isValidNumericCgpa(payload.bachelorCgpa ?? ""),
+      "Bachelor CGPA (numbers only, e.g. 4.2)"
+    );
   }
   if (payload.eduMaster) {
     requireField(errors, isNonEmpty(payload.masterProgrammeUniversity), "Master programme & university");
-    requireField(errors, isNonEmpty(payload.masterCgpa), "Master CGPA");
+    requireField(
+      errors,
+      isNonEmpty(payload.masterCgpa) && isValidNumericCgpa(payload.masterCgpa ?? ""),
+      "Master CGPA (numbers only, e.g. 4.2)"
+    );
   }
 
   requireField(errors, isNonEmpty(payload.academicCertificatesFileName), "Academic certificates");

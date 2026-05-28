@@ -5,7 +5,6 @@ import {
 } from "./application-types";
 import { buildApplicationReviewRows } from "./application-review-summary";
 import {
-  emailButton,
   emailDetailsTable,
   emailLayout,
   escapeHtml,
@@ -16,7 +15,6 @@ import {
   isResendConfigured,
   type SendEmailResult,
 } from "./resend-client";
-import { getAppBaseUrl } from "./send-verification-email";
 
 function formatSubmittedAt(iso: string): string {
   try {
@@ -53,7 +51,6 @@ export async function sendApplicationConfirmationEmail(
   }
 
   const name = applicantDisplayName(application) || "Applicant";
-  const appUrl = `${getAppBaseUrl().replace(/\/$/, "")}/application`;
   const summaryRows = buildApplicationReviewRows(application, {
     profileUploaded: application.profileUploaded,
   });
@@ -81,7 +78,6 @@ export async function sendApplicationConfirmationEmail(
       Your submitted application (review summary)
     </p>
     ${emailDetailsTable(rows)}
-    ${emailButton(appUrl, "Open application portal")}
     <p style="margin:20px 0 0;font-size:12px;color:#64748b;line-height:1.5;">
       The coordination office will contact you regarding next steps. Do not reply to this automated message.
     </p>
@@ -97,8 +93,6 @@ export async function sendApplicationConfirmationEmail(
     "Your submitted application (review summary):",
     "",
     ...rows.map((r) => `${r.label}: ${r.value}`),
-    "",
-    `Application portal: ${appUrl}`,
   ].join("\n");
 
   try {
