@@ -3,6 +3,7 @@ import {
   applicantDisplayName,
   applicantPrimaryEmail,
 } from "./application-types";
+import { buildApplicationReviewRows } from "./application-review-summary";
 import {
   emailButton,
   emailDetailsTable,
@@ -53,25 +54,16 @@ export async function sendApplicationConfirmationEmail(
 
   const name = applicantDisplayName(application) || "Applicant";
   const appUrl = `${getAppBaseUrl().replace(/\/$/, "")}/application`;
+  const summaryRows = buildApplicationReviewRows(application, {
+    profileUploaded: application.profileUploaded,
+  });
   const rows = [
     { label: "Reference", value: application.id },
     { label: "Applicant", value: name },
     { label: "Email", value: to },
-    { label: "Nationality", value: application.nationality },
-    { label: "Country of residence", value: application.countryOfResidence },
-    { label: "Region", value: application.region },
-    { label: "Mobility type", value: application.typeOfMobility },
-    {
-      label: "Host institution",
-      value: application.preferredHostInstitution,
-    },
-    {
-      label: "Academic programme",
-      value: application.proposedAcademicProgramme,
-    },
-    { label: "Thematic area", value: application.thematicArea },
     { label: "Submitted", value: formatSubmittedAt(application.submittedAt) },
     { label: "Status", value: "Pending review" },
+    ...summaryRows,
   ];
 
   const bodyHtml = `
@@ -84,6 +76,9 @@ export async function sendApplicationConfirmationEmail(
     </p>
     <p style="margin:0;font-size:14px;line-height:1.6;color:#334155;">
       Please keep this email for your records. Your application reference is <strong>${escapeHtml(application.id)}</strong>.
+    </p>
+    <p style="margin:16px 0 0;font-size:14px;font-weight:600;color:#062763;">
+      Your submitted application (review summary)
     </p>
     ${emailDetailsTable(rows)}
     ${emailButton(appUrl, "Open application portal")}
@@ -98,6 +93,8 @@ export async function sendApplicationConfirmationEmail(
     `Dear ${name},`,
     "",
     "Thank you for submitting your SMECC2E scholarship application.",
+    "",
+    "Your submitted application (review summary):",
     "",
     ...rows.map((r) => `${r.label}: ${r.value}`),
     "",

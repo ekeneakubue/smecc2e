@@ -4,6 +4,8 @@ import {
   mapPrismaApplicant,
   payloadToApplicantFields,
 } from "./application-mappers";
+import { validateApplicationForSubmit } from "./application-validation";
+import { isEmailVerified } from "./email-verification-store";
 import { prisma } from "./prisma";
 
 function applicantWhereByRef(ref: string) {
@@ -121,6 +123,28 @@ export async function submitApplication(
   existingId?: string
 ): Promise<ApplicationRecord> {
   const email = applicantEmailFromPayload(payload);
+  if (!email) {
+    throw new Error("Email is required to submit your application.");
+  }
+  if (!(await isEmailVerified(email))) {
+    throw new Error("Please verify your email before submitting.");
+  }
+
+  const validation = validateApplicationForSubmit(payload, {
+    instructionsAccepted: true,
+    emailVerified: true,
+  });
+  if (!validation.valid) {
+    const preview = validation.errors.slice(0, 8).join("; ");
+    const suffix =
+      validation.errors.length > 8
+        ? ` (+${validation.errors.length - 8} more)`
+        : "";
+    throw new Error(
+      `Please complete all required fields before submitting: ${preview}${suffix}`
+    );
+  }
+
   const fields = payloadToApplicantFields(payload);
   const now = new Date();
 

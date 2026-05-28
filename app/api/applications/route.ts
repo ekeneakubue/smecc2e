@@ -51,15 +51,18 @@ export async function POST(request: Request) {
   } catch (err) {
     console.error("POST /api/applications", err);
     const connectionError = toUserFacingDatabaseError(err);
+    const message =
+      connectionError ??
+      (err instanceof Error ? err.message : "Failed to save application");
+    const isClientError =
+      !connectionError &&
+      err instanceof Error &&
+      (/complete all required fields/i.test(err.message) ||
+        /verify your email/i.test(err.message) ||
+        /email is required/i.test(err.message));
     return NextResponse.json(
-      {
-        error:
-          connectionError ??
-          (err instanceof Error
-            ? err.message
-            : "Failed to save application"),
-      },
-      { status: connectionError ? 503 : 500 }
+      { error: message },
+      { status: connectionError ? 503 : isClientError ? 400 : 500 }
     );
   }
 }

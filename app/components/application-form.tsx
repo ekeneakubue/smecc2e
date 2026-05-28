@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { GuidelinesPdfViewer } from "./guidelines-pdf-viewer";
 import type { ApplicationRecord } from "@/lib/application-types";
+import { validateApplicationForSubmit } from "@/lib/application-validation";
 import type { ProgramRecord, ProgramTypeLabel } from "@/lib/academic-program";
 import {
   countriesFromRegions,
@@ -455,6 +456,19 @@ export function ApplicationForm() {
       staffHostCommitmentLetterFileName,
       medicalFitnessDeclarationFileName,
       previousScholarshipDeclarationFileName,
+    ]
+  );
+
+  const submitValidation = useMemo(
+    () =>
+      validateApplicationForSubmit(buildApplicationPayload(), {
+        instructionsAccepted,
+        emailVerified,
+      }),
+    [
+      buildApplicationPayload,
+      instructionsAccepted,
+      emailVerified,
     ]
   );
 
@@ -963,6 +977,19 @@ export function ApplicationForm() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSubmitError(null);
+
+    if (!submitValidation.valid) {
+      setSubmitError(
+        `Please complete all required fields before submitting. Missing: ${submitValidation.errors.slice(0, 6).join("; ")}${
+          submitValidation.errors.length > 6
+            ? ` (+${submitValidation.errors.length - 6} more)`
+            : ""
+        }`
+      );
+      window.scrollTo({ top: document.body.scrollHeight, behavior: "smooth" });
+      return;
+    }
+
     setSubmitting(true);
     try {
       const res = await fetch("/api/applications", {
@@ -1044,8 +1071,8 @@ export function ApplicationForm() {
           </p>
           {confirmationEmailSent === true && (
             <p className="mt-2 text-sm text-emerald-700">
-              A confirmation email with your application details has been sent
-              to your inbox.
+              A confirmation email with your full application review (stage 18
+              summary) has been sent to your inbox.
             </p>
           )}
           {confirmationEmailSent === false && (
@@ -1241,7 +1268,12 @@ export function ApplicationForm() {
             ) : (
               <button
                 type="submit"
-                disabled={submitting}
+                disabled={submitting || !submitValidation.valid}
+                title={
+                  !submitValidation.valid
+                    ? "Complete all required fields before submitting"
+                    : undefined
+                }
                 className="rounded-md bg-[#f7be2a] px-8 py-2.5 text-sm font-extrabold text-[#062763] transition hover:bg-white disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {submitting ? "Submitting…" : "Submit application"}
@@ -1263,6 +1295,24 @@ export function ApplicationForm() {
               <p className="rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700">
                 {submitError}
               </p>
+            )}
+            {currentPage === TOTAL_PAGES && !submitValidation.valid && (
+              <div
+                className="max-w-md rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-left text-sm text-amber-950"
+                role="alert"
+              >
+                <p className="font-semibold">
+                  Complete all required fields before you can submit:
+                </p>
+                <ul className="mt-2 list-inside list-disc space-y-1">
+                  {submitValidation.errors.slice(0, 12).map((item) => (
+                    <li key={item}>{item}</li>
+                  ))}
+                  {submitValidation.errors.length > 12 && (
+                    <li>…and {submitValidation.errors.length - 12} more</li>
+                  )}
+                </ul>
+              </div>
             )}
           </div>
           <p className="text-xs text-slate-500">
@@ -2418,8 +2468,9 @@ function SectionDEducationPanel({
           />
           <ShortAnswer
             required
+            numericOnly
             label="Cumulative Grade Point Average (CGPA) for the Bachelors Degree"
-            description="e.g. 4.2 / 5"
+            description="e.g. 4.2"
             value={form.bachelorCgpa}
             onChange={(v) => update("bachelorCgpa", v)}
           />
@@ -2437,8 +2488,9 @@ function SectionDEducationPanel({
           />
           <ShortAnswer
             required
+            numericOnly
             label="Cumulative Grade Point Average (CGPA) for Masters Degree"
-            description="e.g. 4.2 / 5 or Distinction"
+            description="e.g. 4.2"
             value={form.masterCgpa}
             onChange={(v) => update("masterCgpa", v)}
           />
@@ -4134,6 +4186,13 @@ const fieldOptionLabelClass =
 const fieldUploadZoneClass =
   "mt-3 rounded-lg border-2 border-dashed border-[#062763]/40 bg-[#eef2f7] p-4 sm:p-5";
 
+function filterNumericDecimalInput(value: string): string {
+  const cleaned = value.replace(/[^\d.]/g, "");
+  const parts = cleaned.split(".");
+  if (parts.length <= 1) return cleaned;
+  return `${parts[0]}.${parts.slice(1).join("")}`;
+}
+
 function ShortAnswer({
   label,
   value,
@@ -4142,6 +4201,7 @@ function ShortAnswer({
   type = "text",
   description,
   disabled,
+  numericOnly,
 }: {
   label: string;
   value: string;
@@ -4150,7 +4210,11 @@ function ShortAnswer({
   type?: string;
   description?: string;
   disabled?: boolean;
+  numericOnly?: boolean;
 }) {
+  const inputType = numericOnly ? "text" : type;
+  const inputMode = numericOnly ? "decimal" : undefined;
+
   return (
     <div>
       <label className="block text-sm font-medium text-slate-800 sm:text-base">
@@ -4161,11 +4225,16 @@ function ShortAnswer({
         <p className="mt-1 text-xs text-slate-500 sm:text-sm">{description}</p>
       )}
       <input
-        type={type}
+        type={inputType}
+        inputMode={inputMode}
         required={required}
         value={value}
         disabled={disabled}
-        onChange={(e) => onChange(e.target.value)}
+        onChange={(e) =>
+          onChange(
+            numericOnly ? filterNumericDecimalInput(e.target.value) : e.target.value
+          )
+        }
         className={`${fieldInputClass} ${disabled ? "cursor-not-allowed opacity-60" : ""}`}
       />
     </div>
