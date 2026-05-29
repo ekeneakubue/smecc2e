@@ -1,7 +1,6 @@
 "use client";
 
-import { Fragment, Suspense, useCallback, useEffect, useMemo, useState } from "react";
-import { useSearchParams } from "next/navigation";
+import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
 import {
   applicantDisplayName,
   applicantPrimaryEmail,
@@ -31,23 +30,31 @@ function applicantsPageTitle(
   return match?.label ?? STATUS_LABELS[statusFilter];
 }
 
-function CoordinatorApplicantsContent() {
+function statusFilterFromParam(
+  statusFromUrl: string | null | undefined
+): ApplicationStatus | "all" {
+  return statusFromUrl && isApplicationStatus(statusFromUrl)
+    ? statusFromUrl
+    : "all";
+}
+
+export function CoordinatorApplicants({
+  statusFromUrl = null,
+}: {
+  statusFromUrl?: string | null;
+}) {
   const { basePath } = useDashboardPortal();
-  const searchParams = useSearchParams();
   const managementNav = useMemo(
     () => buildApplicantsManagementNav(basePath),
     [basePath]
   );
-  const statusFromUrl = searchParams.get("status");
-  const initialStatusFilter: ApplicationStatus | "all" =
-    statusFromUrl && isApplicationStatus(statusFromUrl) ? statusFromUrl : "all";
 
   const [applications, setApplications] = useState<ApplicationRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<ApplicationStatus | "all">(
-    initialStatusFilter
+    () => statusFilterFromParam(statusFromUrl)
   );
   const [mobilityFilter, setMobilityFilter] = useState("all");
   const [updatingStatus, setUpdatingStatus] = useState(false);
@@ -69,13 +76,7 @@ function CoordinatorApplicantsContent() {
   }, [loadApplications]);
 
   useEffect(() => {
-    if (statusFromUrl && isApplicationStatus(statusFromUrl)) {
-      setStatusFilter(statusFromUrl);
-      return;
-    }
-    if (!statusFromUrl) {
-      setStatusFilter("all");
-    }
+    setStatusFilter(statusFilterFromParam(statusFromUrl));
   }, [statusFromUrl]);
 
   const pageTitle = applicantsPageTitle(statusFilter, managementNav);
@@ -320,21 +321,5 @@ function CoordinatorApplicantsContent() {
         </div>
       </main>
     </div>
-  );
-}
-
-function CoordinatorApplicantsFallback() {
-  return (
-    <div className="flex min-w-0 flex-1 items-center justify-center p-12 text-sm text-slate-600">
-      Loading applicants…
-    </div>
-  );
-}
-
-export function CoordinatorApplicants() {
-  return (
-    <Suspense fallback={<CoordinatorApplicantsFallback />}>
-      <CoordinatorApplicantsContent />
-    </Suspense>
   );
 }
