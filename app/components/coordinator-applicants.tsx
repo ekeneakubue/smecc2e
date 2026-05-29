@@ -1,6 +1,6 @@
 "use client";
 
-import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
+import { Fragment, Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import {
   applicantDisplayName,
@@ -31,7 +31,7 @@ function applicantsPageTitle(
   return match?.label ?? STATUS_LABELS[statusFilter];
 }
 
-export function CoordinatorApplicants() {
+function CoordinatorApplicantsContent() {
   const { basePath } = useDashboardPortal();
   const searchParams = useSearchParams();
   const managementNav = useMemo(
@@ -320,5 +320,21 @@ export function CoordinatorApplicants() {
         </div>
       </main>
     </div>
+  );
+}
+
+function CoordinatorApplicantsFallback() {
+  return (
+    <div className="flex min-w-0 flex-1 items-center justify-center p-12 text-sm text-slate-600">
+      Loading applicants…
+    </div>
+  );
+}
+
+export function CoordinatorApplicants() {
+  return (
+    <Suspense fallback={<CoordinatorApplicantsFallback />}>
+      <CoordinatorApplicantsContent />
+    </Suspense>
   );
 }

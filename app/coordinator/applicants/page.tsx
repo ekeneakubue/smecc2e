@@ -1,5 +1,6 @@
-import { Suspense } from "react";
 import { CoordinatorApplicants } from "../../components/coordinator-applicants";
+
+export const dynamic = "force-dynamic";
 
 export const metadata = {
   title: "Applicants | Coordinator | SMECC2E",
@@ -7,15 +8,5 @@ export const metadata = {
 };
 
 export default function CoordinatorApplicantsPage() {
-  return (
-    <Suspense
-      fallback={
-        <div className="flex flex-1 items-center justify-center p-12 text-sm text-slate-600">
-          Loading applicants…
-        </div>
-      }
-    >
-      <CoordinatorApplicants />
-    </Suspense>
-  );
+  return <CoordinatorApplicants />;
 }
