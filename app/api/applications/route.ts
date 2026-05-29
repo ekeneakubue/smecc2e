@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import type { ApplicationPayload } from "@/lib/application-types";
-import { AuthError, requireCoordinatorSessionUser } from "@/lib/auth-service";
+import { AuthError, requireDashboardSessionUser } from "@/lib/auth-service";
 import {
   listApplications,
   submitApplication,
@@ -10,7 +10,7 @@ import { sendApplicationConfirmationEmail } from "@/lib/send-application-confirm
 
 export async function GET() {
   try {
-    await requireCoordinatorSessionUser();
+    await requireDashboardSessionUser();
     const applications = await listApplications();
     return NextResponse.json({ applications });
   } catch (err) {

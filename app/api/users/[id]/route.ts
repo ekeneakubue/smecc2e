@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import type { DashboardUser } from "@/lib/dashboard-users";
-import { AuthError, requireCoordinatorSessionUser } from "@/lib/auth-service";
+import { AuthError, requireDashboardSessionUser } from "@/lib/auth-service";
 import { toUserFacingDatabaseError } from "@/lib/prisma-errors";
 import { deleteUser, updateUser } from "@/lib/users-service";
 
@@ -8,7 +8,7 @@ type RouteContext = { params: Promise<{ id: string }> };
 
 export async function PATCH(request: Request, context: RouteContext) {
   try {
-    await requireCoordinatorSessionUser();
+    await requireDashboardSessionUser();
     const { id } = await context.params;
     const body = (await request.json()) as {
       name?: string;
@@ -73,7 +73,7 @@ export async function PATCH(request: Request, context: RouteContext) {
 
 export async function DELETE(_request: Request, context: RouteContext) {
   try {
-    await requireCoordinatorSessionUser();
+    await requireDashboardSessionUser();
     const { id } = await context.params;
     const { users } = await deleteUser(id);
     return NextResponse.json({ users });

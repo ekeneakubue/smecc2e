@@ -1,5 +1,7 @@
 import { Suspense } from "react";
+import { DashboardPortalProvider } from "../components/dashboard-portal-provider";
 import { CoordinatorSidebar } from "../components/coordinator-sidebar";
+import { IdleSessionGuard } from "../components/idle-session-guard";
 
 export const metadata = {
   title: "Coordinator Dashboard | SMECC2E",
@@ -13,11 +15,14 @@ export default function CoordinatorLayout({
   children: React.ReactNode;
 }) {
   return (
-    <div className="flex min-h-dvh bg-white">
-      <Suspense fallback={null}>
-        <CoordinatorSidebar />
-      </Suspense>
-      {children}
-    </div>
+    <DashboardPortalProvider portalKey="coordinator">
+      <IdleSessionGuard />
+      <div className="min-h-dvh bg-white">
+        <Suspense fallback={null}>
+          <CoordinatorSidebar />
+        </Suspense>
+        <div className="min-h-dvh lg:pl-64">{children}</div>
+      </div>
+    </DashboardPortalProvider>
   );
 }

@@ -4,7 +4,7 @@ import { SiteFooter } from "../components/site-footer";
 export const metadata = {
   title: "Login | SMECC2E",
   description:
-    "Sign in to the SMECC2E coordinator dashboard to review applications and manage programme data.",
+    "Sign in to the SMECC2E dashboard to review applications and manage programme data.",
 };
 
 export default function LoginPage() {

@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { AuthError, requireCoordinatorSessionUser } from "@/lib/auth-service";
+import { AuthError, requireDashboardSessionUser } from "@/lib/auth-service";
 import { toUserFacingDatabaseError } from "@/lib/prisma-errors";
 import { parseCountriesInput } from "@/lib/regions";
 import { deleteRegion, updateRegion } from "@/lib/regions-service";
@@ -8,7 +8,7 @@ type RouteContext = { params: Promise<{ id: string }> };
 
 export async function PATCH(request: Request, context: RouteContext) {
   try {
-    await requireCoordinatorSessionUser();
+    await requireDashboardSessionUser();
     const { id } = await context.params;
     const body = (await request.json()) as {
       name?: string;
@@ -61,7 +61,7 @@ export async function PATCH(request: Request, context: RouteContext) {
 
 export async function DELETE(_request: Request, context: RouteContext) {
   try {
-    await requireCoordinatorSessionUser();
+    await requireDashboardSessionUser();
     const { id } = await context.params;
     const { regions } = await deleteRegion(id);
     return NextResponse.json({

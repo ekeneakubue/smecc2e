@@ -12,8 +12,10 @@ import {
   ApplicationDetailPanel,
   formatDate,
 } from "./coordinator-shared";
+import { useDashboardPortal } from "./dashboard-portal-provider";
 
 export function CoordinatorScholars() {
+  const { basePath } = useDashboardPortal();
   const [applications, setApplications] = useState<ApplicationRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -120,7 +122,7 @@ export function CoordinatorScholars() {
           <strong className="text-[#062763]">Approved</strong> status. Change
           status on the{" "}
           <Link
-            href="/coordinator/applicants"
+            href={`${basePath}/applicants`}
             className="font-bold text-[#062763] underline"
           >
             Applicants

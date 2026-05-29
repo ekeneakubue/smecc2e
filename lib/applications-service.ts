@@ -5,7 +5,7 @@ import {
   payloadToApplicantFields,
 } from "./application-mappers";
 import { validateApplicationForSubmit } from "./application-validation";
-import { isEmailVerified } from "./email-verification-store";
+import { isApplicantEmailVerifiedForSubmit } from "./email-verification-store";
 import { prisma } from "./prisma";
 
 function applicantWhereByRef(ref: string) {
@@ -126,7 +126,7 @@ export async function submitApplication(
   if (!email) {
     throw new Error("Email is required to submit your application.");
   }
-  if (!(await isEmailVerified(email))) {
+  if (!(await isApplicantEmailVerifiedForSubmit(payload))) {
     throw new Error("Please verify your email before submitting.");
   }
 

@@ -4,11 +4,13 @@ import Image from "next/image";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useState } from "react";
+import { defaultDashboardPathForRole } from "@/lib/dashboard-portal";
 
 function LoginFormContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const redirect = searchParams.get("redirect");
+  const idleLogout = searchParams.get("reason") === "idle";
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -35,6 +37,7 @@ function LoginFormContent() {
         ok?: boolean;
         error?: string;
         redirectTo?: string;
+        user?: { role: "Coordinator" | "Reviewer" | "Administrator" };
       };
 
       if (!res.ok) {
@@ -42,7 +45,10 @@ function LoginFormContent() {
         return;
       }
 
-      router.replace(data.redirectTo ?? "/coordinator");
+      const fallback = data.user?.role
+        ? defaultDashboardPathForRole(data.user.role)
+        : "/login";
+      router.replace(data.redirectTo ?? fallback);
       router.refresh();
     } catch {
       setError("A network error occurred. Check your connection and try again.");
@@ -67,14 +73,23 @@ function LoginFormContent() {
             </div>
           </div>
           <h1 className="mt-4 text-xl font-bold tracking-tight">
-            Coordinator login
+            Dashboard login
           </h1>
           <p className="mt-1 text-sm text-blue-100/90">
-            Sign in to access your dashboard
+            Sign in as coordinator or administrator
           </p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-5 px-6 py-8">
+          {idleLogout && (
+            <p
+              role="status"
+              className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm font-medium text-amber-900"
+            >
+              You were signed out after 10 minutes of inactivity. Please sign in
+              again.
+            </p>
+          )}
           {error && (
             <p
               role="alert"

@@ -3,7 +3,7 @@ import type { ApplicationStatus } from "@/lib/application-types";
 import { COORDINATOR_APPLICATION_STATUSES } from "@/lib/application-types";
 import {
   AuthError,
-  requireCoordinatorSessionUser,
+  requireDashboardSessionUser,
 } from "@/lib/auth-service";
 import {
   getApplication,
@@ -21,7 +21,7 @@ export async function GET(_request: Request, context: RouteContext) {
       return NextResponse.json({ error: "Not found" }, { status: 404 });
     }
     if (application.status !== "draft") {
-      await requireCoordinatorSessionUser();
+      await requireDashboardSessionUser();
     }
     return NextResponse.json({ application });
   } catch (err) {
@@ -45,7 +45,7 @@ export async function GET(_request: Request, context: RouteContext) {
 
 export async function PATCH(request: Request, context: RouteContext) {
   try {
-    await requireCoordinatorSessionUser();
+    await requireDashboardSessionUser();
     const { id } = await context.params;
     const body = (await request.json()) as { status?: ApplicationStatus };
     if (

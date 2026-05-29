@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { AuthError, requireCoordinatorSessionUser } from "@/lib/auth-service";
+import { AuthError, requireDashboardSessionUser } from "@/lib/auth-service";
 import { toUserFacingDatabaseError } from "@/lib/prisma-errors";
 import { parseCountriesInput } from "@/lib/regions";
 import { createRegion, listRegions } from "@/lib/regions-service";
@@ -25,7 +25,7 @@ export async function GET() {
 
 export async function POST(request: Request) {
   try {
-    await requireCoordinatorSessionUser();
+    await requireDashboardSessionUser();
     const body = (await request.json()) as {
       name?: string;
       countries?: string[];

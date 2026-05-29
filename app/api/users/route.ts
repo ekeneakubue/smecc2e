@@ -1,12 +1,12 @@
 import { NextResponse } from "next/server";
 import type { DashboardUser } from "@/lib/dashboard-users";
-import { AuthError, requireCoordinatorSessionUser } from "@/lib/auth-service";
+import { AuthError, requireDashboardSessionUser } from "@/lib/auth-service";
 import { toUserFacingDatabaseError } from "@/lib/prisma-errors";
 import { createUser, listUsers } from "@/lib/users-service";
 
 export async function GET() {
   try {
-    await requireCoordinatorSessionUser();
+    await requireDashboardSessionUser();
     const users = await listUsers();
     return NextResponse.json({ users });
   } catch (err) {
@@ -30,7 +30,7 @@ export async function GET() {
 
 export async function POST(request: Request) {
   try {
-    await requireCoordinatorSessionUser();
+    const sessionUser = await requireDashboardSessionUser();
     const body = (await request.json()) as {
       name?: string;
       email?: string;
@@ -42,8 +42,17 @@ export async function POST(request: Request) {
       status?: DashboardUser["status"];
     };
 
-    const role = body.role ?? "Coordinator";
+    const role =
+      body.role ??
+      (sessionUser.role === "Administrator" ? "Reviewer" : "Coordinator");
     const status = body.status ?? "Active";
+
+    if (sessionUser.role === "Administrator" && role !== "Reviewer") {
+      return NextResponse.json(
+        { error: "Administrators can only create reviewer accounts." },
+        { status: 403 }
+      );
+    }
 
     if (
       role !== "Coordinator" &&

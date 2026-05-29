@@ -4,6 +4,7 @@ import Image from "next/image";
 import { useCallback, useRef, useState } from "react";
 import type { DashboardUser } from "@/lib/dashboard-users";
 import { hostInstitutions } from "@/lib/programmes";
+import { useDashboardPortal } from "./dashboard-portal-provider";
 import {
   MIN_PASSWORD_LENGTH,
   passwordLengthError,
@@ -274,6 +275,12 @@ export function CoordinatorUsers({
   initialUsers?: DashboardUser[];
   initialLoadError?: string | null;
 }) {
+  const { portalKey } = useDashboardPortal();
+  const defaultCreateRole: DashboardUser["role"] =
+    portalKey === "administrator" ? "Reviewer" : "Coordinator";
+  const createUserRoles: DashboardUser["role"][] =
+    portalKey === "administrator" ? ["Reviewer"] : USER_ROLES;
+
   const [users, setUsers] = useState<DashboardUser[]>(initialUsers);
   const [loading, setLoading] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(initialLoadError);
@@ -292,7 +299,7 @@ export function CoordinatorUsers({
     password: "",
     confirmPassword: "",
     institution: INSTITUTION_OPTIONS[0],
-    role: "Coordinator" as DashboardUser["role"],
+    role: defaultCreateRole,
     status: "Active" as DashboardUser["status"],
   });
   const [editingUser, setEditingUser] = useState<DashboardUser | null>(null);
@@ -362,7 +369,7 @@ export function CoordinatorUsers({
       password: "",
       confirmPassword: "",
       institution: INSTITUTION_OPTIONS[0],
-      role: "Coordinator",
+      role: defaultCreateRole,
       status: "Active",
     });
     setCreateError(null);
@@ -915,7 +922,7 @@ export function CoordinatorUsers({
                     disabled={creating}
                     className={inputClass}
                   >
-                    {USER_ROLES.map((role) => (
+                    {createUserRoles.map((role) => (
                       <option key={role} value={role}>
                         {role}
                       </option>

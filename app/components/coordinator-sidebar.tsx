@@ -4,10 +4,8 @@ import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
-import {
-  COORDINATOR_NAV,
-  type CoordinatorNavId,
-} from "@/lib/coordinator-nav";
+import { isDashboardNavActive, type CoordinatorNavId } from "@/lib/coordinator-nav";
+import { useDashboardPortal } from "./dashboard-portal-provider";
 
 function NavIcon({ section }: { section: CoordinatorNavId }) {
   const className = "h-5 w-5 shrink-0";
@@ -58,43 +56,12 @@ function NavIcon({ section }: { section: CoordinatorNavId }) {
   }
 }
 
-function isNavActive(
-  itemId: CoordinatorNavId,
-  pathname: string,
-  section: string | null
-): boolean {
-  if (itemId === "users") {
-    return pathname === "/coordinator/users";
-  }
-  if (itemId === "regions") {
-    return pathname === "/coordinator/regions";
-  }
-  if (itemId === "institutions") {
-    return pathname === "/coordinator/institutions";
-  }
-  if (itemId === "applicants") {
-    return pathname === "/coordinator/applicants";
-  }
-  if (itemId === "scholars") {
-    return pathname === "/coordinator/scholars";
-  }
-  if (itemId === "programs") {
-    return pathname === "/coordinator/programs";
-  }
-  if (pathname !== "/coordinator") {
-    return false;
-  }
-  if (itemId === "overview") {
-    return !section || section === "overview";
-  }
-  return section === itemId;
-}
-
 export function CoordinatorSidebar({
   onNavigate,
 }: {
   onNavigate?: () => void;
 }) {
+  const { basePath, label, nav } = useDashboardPortal();
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const [isHydrated, setIsHydrated] = useState(false);
@@ -161,11 +128,11 @@ export function CoordinatorSidebar({
       )}
 
       <aside
-        className={`fixed inset-y-0 left-0 z-50 flex w-64 flex-col border-r border-white/10 bg-[#062763] text-white transition-transform lg:static lg:translate-x-0 ${
+        className={`fixed left-0 top-0 z-50 flex h-dvh w-64 flex-col border-r border-white/10 bg-[#062763] text-white transition-transform ${
           sidebarOpen ? "translate-x-0" : "-translate-x-full"
-        }`}
+        } lg:translate-x-0`}
       >
-        <div className="flex items-center gap-3 border-b border-white/10 px-5 py-5">
+        <div className="flex shrink-0 items-center gap-3 border-b border-white/10 px-5 py-5">
           <div className="relative h-10 w-10 shrink-0 rounded-lg bg-white p-1">
             <Image
               src="/images/logo1.png"
@@ -179,13 +146,21 @@ export function CoordinatorSidebar({
             <p className="text-xs font-semibold uppercase tracking-wider text-[#f7be2a]">
               SMECC2E
             </p>
-            <p className="text-sm font-bold leading-tight text-white">Coordinator</p>
+            <p className="text-sm font-bold leading-tight text-white">{label}</p>
           </div>
         </div>
 
-        <nav className="flex-1 space-y-1 px-3 py-4" aria-label="Dashboard">
-          {COORDINATOR_NAV.map((item) => {
-            const active = isNavActive(item.id, pathname, section);
+        <nav
+          className="min-h-0 flex-1 space-y-1 overflow-y-auto px-3 py-4"
+          aria-label="Dashboard"
+        >
+          {nav.map((item) => {
+            const active = isDashboardNavActive(
+              item.id,
+              pathname,
+              section,
+              basePath
+            );
             return (
               <Link
                 key={item.id}
@@ -204,7 +179,7 @@ export function CoordinatorSidebar({
           })}
         </nav>
 
-        <div className="space-y-2 border-t border-white/10 px-4 py-4">
+        <div className="shrink-0 space-y-2 border-t border-white/10 px-4 py-4">
           {sessionUser && (
             <div className="rounded-lg bg-white/10 px-3 py-2.5">
               <p className="truncate text-sm font-semibold text-white">

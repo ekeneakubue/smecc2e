@@ -2,9 +2,10 @@
 
 import Image from "next/image";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useContext, useEffect, useMemo, useRef, useState, createContext } from "react";
 import { GuidelinesPdfViewer } from "./guidelines-pdf-viewer";
 import type { ApplicationRecord } from "@/lib/application-types";
+import type { ApplicationDocumentField } from "@/lib/application-documents";
 import { validateApplicationForSubmit } from "@/lib/application-validation";
 import type { ProgramRecord, ProgramTypeLabel } from "@/lib/academic-program";
 import {
@@ -12,6 +13,56 @@ import {
   regionNameForCountry,
   type RegionRecord,
 } from "@/lib/regions";
+
+const ApplicationUploadContext = createContext<{
+  uploadDocument: (
+    field: ApplicationDocumentField,
+    file: File
+  ) => Promise<string>;
+} | null>(null);
+
+const DOCUMENT_FIELD_PAYLOAD_KEY: Record<
+  ApplicationDocumentField,
+  keyof ApplicationRecord | "profileUploaded"
+> = {
+  profile: "profileUploaded",
+  passport: "passportFileName",
+  disadvantagedDoc: "disadvantagedDocFileName",
+  academicCertificates: "academicCertificatesFileName",
+  academicTranscripts: "academicTranscriptsFileName",
+  proofOfRegistration: "proofOfRegistrationFileName",
+  proofOfCoursework: "proofOfCourseworkFileName",
+  cv: "cvFileName",
+  publications: "publicationsFileName",
+  studyResearchPlan: "studyResearchPlanFileName",
+  researchProposal: "researchProposalFileName",
+  languageCertificate: "languageCertificateFileName",
+  referenceLetters: "referenceLettersFileName",
+  graduateAdmissionProof: "graduateAdmissionProofFileName",
+  staffEmploymentProof: "staffEmploymentProofFileName",
+  staffHostCommitmentLetter: "staffHostCommitmentLetterFileName",
+  medicalFitnessDeclaration: "medicalFitnessDeclarationFileName",
+  previousScholarshipDeclaration: "previousScholarshipDeclarationFileName",
+};
+
+async function uploadApplicationDocumentFile(
+  applicationId: string,
+  field: ApplicationDocumentField,
+  file: File
+): Promise<string> {
+  const formData = new FormData();
+  formData.append("file", file);
+  formData.append("field", field);
+  const res = await fetch(
+    `/api/applications/${encodeURIComponent(applicationId)}/upload`,
+    { method: "POST", body: formData }
+  );
+  const data = (await res.json()) as { storedName?: string; error?: string };
+  if (!res.ok || !data.storedName) {
+    throw new Error(data.error ?? "Failed to upload document");
+  }
+  return data.storedName;
+}
 
 const TOTAL_PAGES = 18;
 const APPLICATION_ID_KEY = "smecc2e_application_id";
@@ -409,32 +460,40 @@ export function ApplicationForm() {
   const [previousScholarshipDeclarationFileName, setPreviousScholarshipDeclarationFileName] =
     useState<string | null>(null);
   const [draftId, setDraftId] = useState<string | null>(null);
+  const pendingDocumentUploadsRef = useRef(
+    new Map<ApplicationDocumentField, File>()
+  );
   const [savingDraft, setSavingDraft] = useState(false);
   const [saveMessage, setSaveMessage] = useState<string | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
 
   const buildApplicationPayload = useCallback(
-    () => ({
-      ...form,
-      profileUploaded: profileMarkedUploaded || Boolean(profilePreview),
-      passportFileName,
-      disadvantagedDocFileName,
-      academicCertificatesFileName,
-      academicTranscriptsFileName,
-      proofOfRegistrationFileName,
-      proofOfCourseworkFileName,
-      cvFileName,
-      publicationsFileName,
-      studyResearchPlanFileName,
-      researchProposalFileName,
-      languageCertificateFileName,
-      referenceLettersFileName,
-      graduateAdmissionProofFileName,
-      staffEmploymentProofFileName,
-      staffHostCommitmentLetterFileName,
-      medicalFitnessDeclarationFileName,
-      previousScholarshipDeclarationFileName,
-    }),
+    () => {
+      const registrationEmail = form.email.trim();
+      return {
+        ...form,
+        email: registrationEmail,
+        personalEmail: registrationEmail || form.personalEmail.trim(),
+        profileUploaded: profileMarkedUploaded || Boolean(profilePreview),
+        passportFileName,
+        disadvantagedDocFileName,
+        academicCertificatesFileName,
+        academicTranscriptsFileName,
+        proofOfRegistrationFileName,
+        proofOfCourseworkFileName,
+        cvFileName,
+        publicationsFileName,
+        studyResearchPlanFileName,
+        researchProposalFileName,
+        languageCertificateFileName,
+        referenceLettersFileName,
+        graduateAdmissionProofFileName,
+        staffEmploymentProofFileName,
+        staffHostCommitmentLetterFileName,
+        medicalFitnessDeclarationFileName,
+        previousScholarshipDeclarationFileName,
+      };
+    },
     [
       form,
       profileMarkedUploaded,
@@ -470,6 +529,162 @@ export function ApplicationForm() {
       instructionsAccepted,
       emailVerified,
     ]
+  );
+
+  const applyStoredDocumentName = useCallback(
+    (field: ApplicationDocumentField, storedName: string) => {
+      switch (field) {
+        case "profile":
+          setProfileMarkedUploaded(true);
+          break;
+        case "passport":
+          setPassportFileName(storedName);
+          break;
+        case "disadvantagedDoc":
+          setDisadvantagedDocFileName(storedName);
+          break;
+        case "academicCertificates":
+          setAcademicCertificatesFileName(storedName);
+          break;
+        case "academicTranscripts":
+          setAcademicTranscriptsFileName(storedName);
+          break;
+        case "proofOfRegistration":
+          setProofOfRegistrationFileName(storedName);
+          break;
+        case "proofOfCoursework":
+          setProofOfCourseworkFileName(storedName);
+          break;
+        case "cv":
+          setCvFileName(storedName);
+          break;
+        case "publications":
+          setPublicationsFileName(storedName);
+          break;
+        case "studyResearchPlan":
+          setStudyResearchPlanFileName(storedName);
+          break;
+        case "researchProposal":
+          setResearchProposalFileName(storedName);
+          break;
+        case "languageCertificate":
+          setLanguageCertificateFileName(storedName);
+          break;
+        case "referenceLetters":
+          setReferenceLettersFileName(storedName);
+          break;
+        case "graduateAdmissionProof":
+          setGraduateAdmissionProofFileName(storedName);
+          break;
+        case "staffEmploymentProof":
+          setStaffEmploymentProofFileName(storedName);
+          break;
+        case "staffHostCommitmentLetter":
+          setStaffHostCommitmentLetterFileName(storedName);
+          break;
+        case "medicalFitnessDeclaration":
+          setMedicalFitnessDeclarationFileName(storedName);
+          break;
+        case "previousScholarshipDeclaration":
+          setPreviousScholarshipDeclarationFileName(storedName);
+          break;
+      }
+    },
+    []
+  );
+
+  const ensureApplicationId = useCallback(async (): Promise<string | null> => {
+    if (draftId) {
+      try {
+        const res = await fetch(
+          `/api/applications/${encodeURIComponent(draftId)}`,
+          { cache: "no-store" }
+        );
+        if (res.ok) {
+          const data = (await res.json()) as { application?: ApplicationRecord };
+          if (data.application?.status === "draft") {
+            return draftId;
+          }
+        }
+      } catch {
+        /* fall through and create or find a draft */
+      }
+      setDraftId(null);
+      localStorage.removeItem(APPLICATION_ID_KEY);
+    }
+
+    const email = form.email.trim();
+    if (!email || !emailVerified) return null;
+
+    setSavingDraft(true);
+    try {
+      const res = await fetch("/api/applications/draft", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ...buildApplicationPayload(),
+          currentPage,
+        }),
+      });
+      const data = (await res.json()) as {
+        application?: ApplicationRecord;
+        error?: string;
+      };
+      if (!res.ok || !data.application?.id) {
+        return null;
+      }
+      setDraftId(data.application.id);
+      localStorage.setItem(APPLICATION_ID_KEY, data.application.id);
+      return data.application.id;
+    } catch {
+      return null;
+    } finally {
+      setSavingDraft(false);
+    }
+  }, [draftId, form.email, emailVerified, buildApplicationPayload, currentPage]);
+
+  const flushPendingDocumentUploads = useCallback(
+    async (appId: string): Promise<Partial<ApplicationRecord>> => {
+      const overrides: Partial<ApplicationRecord> = {};
+      const pending = pendingDocumentUploadsRef.current;
+
+      for (const [field, file] of [...pending.entries()]) {
+        const storedName = await uploadApplicationDocumentFile(appId, field, file);
+        pending.delete(field);
+        applyStoredDocumentName(field, storedName);
+
+        const payloadKey = DOCUMENT_FIELD_PAYLOAD_KEY[field];
+        if (payloadKey === "profileUploaded") {
+          overrides.profileUploaded = true;
+        } else {
+          (overrides as Record<string, string>)[payloadKey] = storedName;
+        }
+      }
+
+      return overrides;
+    },
+    [applyStoredDocumentName]
+  );
+
+  const uploadDocument = useCallback(
+    async (field: ApplicationDocumentField, file: File): Promise<string> => {
+      const appId = await ensureApplicationId();
+      if (!appId) {
+        pendingDocumentUploadsRef.current.set(field, file);
+        return file.name;
+      }
+
+      const storedName = await uploadApplicationDocumentFile(appId, field, file);
+      pendingDocumentUploadsRef.current.delete(field);
+      applyStoredDocumentName(field, storedName);
+      return storedName;
+    },
+    [ensureApplicationId, applyStoredDocumentName]
+  );
+
+  const uploadContextValue = useMemo(
+    () => ({ uploadDocument }),
+    [uploadDocument]
   );
 
   const applyDraftToForm = useCallback((draft: ApplicationRecord) => {
@@ -675,14 +890,10 @@ export function ApplicationForm() {
     const page = searchParams.get("page");
     const verified = searchParams.get("verified");
     if (verified === "1" && page === "2") {
-      setEmailVerified(true);
       setCurrentPage(2);
       window.scrollTo({ top: 0, behavior: "smooth" });
       router.replace("/application", { scroll: false });
     }
-
-    const storedId = localStorage.getItem(APPLICATION_ID_KEY);
-    if (storedId) setDraftId(storedId);
 
     const storedPage = localStorage.getItem(APPLICATION_PAGE_KEY);
     if (storedPage) {
@@ -707,6 +918,7 @@ export function ApplicationForm() {
         const data = (await res.json()) as { email?: string | null };
         const sessionEmail = data.email?.trim();
         if (!sessionEmail) return;
+        void checkEmailVerified(sessionEmail);
         setForm((prev) => {
           const cur = prev.email.trim();
           if (cur && cur.toLowerCase() !== sessionEmail.toLowerCase()) {
@@ -724,7 +936,7 @@ export function ApplicationForm() {
     return () => {
       cancelled = true;
     };
-  }, [isHydrated]);
+  }, [isHydrated, checkEmailVerified]);
 
   useEffect(() => {
     if (!isHydrated || !form.email.trim()) return;
@@ -739,6 +951,11 @@ export function ApplicationForm() {
       return { ...prev, personalEmail: verified };
     });
   }, [emailVerified, form.email]);
+
+  useEffect(() => {
+    if (!isHydrated || !emailVerified || !form.email.trim() || draftId) return;
+    void ensureApplicationId();
+  }, [isHydrated, emailVerified, form.email, draftId, ensureApplicationId]);
 
   const loadDraftByEmail = useCallback(
     async (email: string) => {
@@ -768,7 +985,10 @@ export function ApplicationForm() {
       const storedId = localStorage.getItem(APPLICATION_ID_KEY);
       if (storedId) {
         try {
-          const res = await fetch(`/api/applications/${storedId}`);
+          const res = await fetch(
+            `/api/applications/${encodeURIComponent(storedId)}`,
+            { cache: "no-store" }
+          );
           if (res.ok) {
             const data = (await res.json()) as {
               application?: ApplicationRecord;
@@ -781,6 +1001,8 @@ export function ApplicationForm() {
         } catch {
           /* fall through */
         }
+        localStorage.removeItem(APPLICATION_ID_KEY);
+        setDraftId(null);
       }
     };
 
@@ -962,6 +1184,7 @@ export function ApplicationForm() {
       if (data.application) {
         setDraftId(data.application.id);
         localStorage.setItem(APPLICATION_ID_KEY, data.application.id);
+        await flushPendingDocumentUploads(data.application.id);
       }
       localStorage.setItem(APPLICATION_PAGE_KEY, String(nextPage));
       setSaveMessage("Progress saved.");
@@ -992,12 +1215,34 @@ export function ApplicationForm() {
 
     setSubmitting(true);
     try {
+      const registrationEmail = form.email.trim();
+      if (registrationEmail) {
+        const verifyRes = await fetch(
+          `/api/verify-email/status?email=${encodeURIComponent(registrationEmail)}`,
+          { cache: "no-store" }
+        );
+        const verifyData = (await verifyRes.json()) as { verified?: boolean };
+        if (!verifyData.verified) {
+          setSubmitError(
+            "Please verify your email before submitting. Return to page 2, click “Verify email”, and open the link sent to your inbox."
+          );
+          return;
+        }
+      }
+
+      const appId = (await ensureApplicationId()) ?? draftId;
+      let payload = buildApplicationPayload();
+      if (appId) {
+        const documentOverrides = await flushPendingDocumentUploads(appId);
+        payload = { ...payload, ...documentOverrides };
+      }
+
       const res = await fetch("/api/applications", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          ...buildApplicationPayload(),
-          applicationId: draftId ?? undefined,
+          ...payload,
+          applicationId: appId ?? undefined,
         }),
       });
       const data = (await res.json()) as {
@@ -1127,6 +1372,7 @@ export function ApplicationForm() {
   }
 
   return (
+    <ApplicationUploadContext.Provider value={uploadContextValue}>
     <div className="overflow-hidden rounded-lg border border-slate-200 bg-white">
       <FormHeader />
 
@@ -1321,6 +1567,7 @@ export function ApplicationForm() {
         </div>
       </form>
     </div>
+    </ApplicationUploadContext.Provider>
   );
 }
 
@@ -1899,7 +2146,7 @@ function RegistrationPanel({
           </p>
           <ProfilePictureUpload
             preview={profilePreview}
-            onFileSelect={(_file, previewUrl) => {
+            onFileSelect={(_file, previewUrl, storedName) => {
               if (profilePreview?.startsWith("blob:")) {
                 URL.revokeObjectURL(profilePreview);
               }
@@ -2202,10 +2449,11 @@ function SectionBPersonalInfoPanel({
         maxSizeMb={1}
         preview={passportPreview}
         fileName={passportFileName}
-        onFileSelect={(file, previewUrl) => {
+        documentField="passport"
+        onFileSelect={(file, previewUrl, storedName) => {
           if (passportPreview) URL.revokeObjectURL(passportPreview);
           setPassportPreview(previewUrl);
-          setPassportFileName(file.name);
+          setPassportFileName(storedName ?? file.name);
         }}
         onClear={() => {
           if (passportPreview) URL.revokeObjectURL(passportPreview);
@@ -2367,12 +2615,13 @@ function SectionCDisabilityPanel({
             maxSizeMb={1}
             preview={disadvantagedDocPreview}
             fileName={disadvantagedDocFileName}
-            onFileSelect={(_file, previewUrl) => {
+            documentField="disadvantagedDoc"
+            onFileSelect={(_file, previewUrl, storedName) => {
               if (disadvantagedDocPreview) {
                 URL.revokeObjectURL(disadvantagedDocPreview);
               }
               setDisadvantagedDocPreview(previewUrl);
-              setDisadvantagedDocFileName(_file.name);
+              setDisadvantagedDocFileName(storedName ?? _file.name);
             }}
             onClear={() => {
               if (disadvantagedDocPreview) {
@@ -2505,12 +2754,13 @@ function SectionDEducationPanel({
         required
         preview={academicCertificatesPreview}
         fileName={academicCertificatesFileName}
-        onFileSelect={(file, previewUrl) => {
+        documentField="academicCertificates"
+        onFileSelect={(file, previewUrl, storedName) => {
           if (academicCertificatesPreview) {
             URL.revokeObjectURL(academicCertificatesPreview);
           }
           setAcademicCertificatesPreview(previewUrl);
-          setAcademicCertificatesFileName(file.name);
+          setAcademicCertificatesFileName(storedName ?? file.name);
         }}
         onClear={() => {
           if (academicCertificatesPreview) {
@@ -2529,12 +2779,13 @@ function SectionDEducationPanel({
         required
         preview={academicTranscriptsPreview}
         fileName={academicTranscriptsFileName}
-        onFileSelect={(file, previewUrl) => {
+        documentField="academicTranscripts"
+        onFileSelect={(file, previewUrl, storedName) => {
           if (academicTranscriptsPreview) {
             URL.revokeObjectURL(academicTranscriptsPreview);
           }
           setAcademicTranscriptsPreview(previewUrl);
-          setAcademicTranscriptsFileName(file.name);
+          setAcademicTranscriptsFileName(storedName ?? file.name);
         }}
         onClear={() => {
           if (academicTranscriptsPreview) {
@@ -2624,12 +2875,13 @@ function SectionERegistrationPanel({
         maxSizeMb={1}
         preview={proofOfRegistrationPreview}
         fileName={proofOfRegistrationFileName}
-        onFileSelect={(file, previewUrl) => {
+        documentField="proofOfRegistration"
+        onFileSelect={(file, previewUrl, storedName) => {
           if (proofOfRegistrationPreview) {
             URL.revokeObjectURL(proofOfRegistrationPreview);
           }
           setProofOfRegistrationPreview(previewUrl);
-          setProofOfRegistrationFileName(file.name);
+          setProofOfRegistrationFileName(storedName ?? file.name);
         }}
         onClear={() => {
           if (proofOfRegistrationPreview) {
@@ -2647,12 +2899,13 @@ function SectionERegistrationPanel({
         maxSizeMb={10}
         preview={proofOfCourseworkPreview}
         fileName={proofOfCourseworkFileName}
-        onFileSelect={(file, previewUrl) => {
+        documentField="proofOfCoursework"
+        onFileSelect={(file, previewUrl, storedName) => {
           if (proofOfCourseworkPreview) {
             URL.revokeObjectURL(proofOfCourseworkPreview);
           }
           setProofOfCourseworkPreview(previewUrl);
-          setProofOfCourseworkFileName(file.name);
+          setProofOfCourseworkFileName(storedName ?? file.name);
         }}
         onClear={() => {
           if (proofOfCourseworkPreview) {
@@ -2710,12 +2963,13 @@ function SectionFAcademicProfilePanel({
         maxSizeMb={10}
         preview={cvPreview}
         fileName={cvFileName}
-        onFileSelect={(file, previewUrl) => {
+        documentField="cv"
+        onFileSelect={(file, previewUrl, storedName) => {
           if (cvPreview) {
             URL.revokeObjectURL(cvPreview);
           }
           setCvPreview(previewUrl);
-          setCvFileName(file.name);
+          setCvFileName(storedName ?? file.name);
         }}
         onClear={() => {
           if (cvPreview) {
@@ -2733,12 +2987,13 @@ function SectionFAcademicProfilePanel({
         maxSizeMb={10}
         preview={publicationsPreview}
         fileName={publicationsFileName}
-        onFileSelect={(file, previewUrl) => {
+        documentField="publications"
+        onFileSelect={(file, previewUrl, storedName) => {
           if (publicationsPreview) {
             URL.revokeObjectURL(publicationsPreview);
           }
           setPublicationsPreview(previewUrl);
-          setPublicationsFileName(file.name);
+          setPublicationsFileName(storedName ?? file.name);
         }}
         onClear={() => {
           if (publicationsPreview) {
@@ -2871,12 +3126,13 @@ function SectionHResearchPanel({
           maxSizeMb={10}
           preview={studyResearchPlanPreview}
           fileName={studyResearchPlanFileName}
-          onFileSelect={(file, previewUrl) => {
+          documentField="studyResearchPlan"
+          onFileSelect={(file, previewUrl, storedName) => {
             if (studyResearchPlanPreview) {
               URL.revokeObjectURL(studyResearchPlanPreview);
             }
             setStudyResearchPlanPreview(previewUrl);
-            setStudyResearchPlanFileName(file.name);
+            setStudyResearchPlanFileName(storedName ?? file.name);
           }}
           onClear={() => {
             if (studyResearchPlanPreview) {
@@ -2897,12 +3153,13 @@ function SectionHResearchPanel({
           maxSizeMb={1}
           preview={researchProposalPreview}
           fileName={researchProposalFileName}
-          onFileSelect={(file, previewUrl) => {
+          documentField="researchProposal"
+          onFileSelect={(file, previewUrl, storedName) => {
             if (researchProposalPreview) {
               URL.revokeObjectURL(researchProposalPreview);
             }
             setResearchProposalPreview(previewUrl);
-            setResearchProposalFileName(file.name);
+            setResearchProposalFileName(storedName ?? file.name);
           }}
           onClear={() => {
             if (researchProposalPreview) {
@@ -3137,12 +3394,13 @@ function SectionKLanguagePanel({
           maxSizeMb={10}
           preview={languageCertificatePreview}
           fileName={languageCertificateFileName}
-          onFileSelect={(file, previewUrl) => {
+          documentField="languageCertificate"
+          onFileSelect={(file, previewUrl, storedName) => {
             if (languageCertificatePreview) {
               URL.revokeObjectURL(languageCertificatePreview);
             }
             setLanguageCertificatePreview(previewUrl);
-            setLanguageCertificateFileName(file.name);
+            setLanguageCertificateFileName(storedName ?? file.name);
           }}
           onClear={clearLanguageCertificate}
         />
@@ -3276,12 +3534,13 @@ function SectionLReferencesPanel({
         maxSizeMb={10}
         preview={referenceLettersPreview}
         fileName={referenceLettersFileName}
-        onFileSelect={(file, previewUrl) => {
+        documentField="referenceLetters"
+        onFileSelect={(file, previewUrl, storedName) => {
           if (referenceLettersPreview) {
             URL.revokeObjectURL(referenceLettersPreview);
           }
           setReferenceLettersPreview(previewUrl);
-          setReferenceLettersFileName(file.name);
+          setReferenceLettersFileName(storedName ?? file.name);
         }}
         onClear={() => {
           if (referenceLettersPreview) {
@@ -3354,12 +3613,13 @@ function SectionMAdditionalDocumentsPanel({
           maxSizeMb={1}
           preview={graduateAdmissionProofPreview}
           fileName={graduateAdmissionProofFileName}
-          onFileSelect={(file, previewUrl) => {
+          documentField="graduateAdmissionProof"
+          onFileSelect={(file, previewUrl, storedName) => {
             if (graduateAdmissionProofPreview) {
               URL.revokeObjectURL(graduateAdmissionProofPreview);
             }
             setGraduateAdmissionProofPreview(previewUrl);
-            setGraduateAdmissionProofFileName(file.name);
+            setGraduateAdmissionProofFileName(storedName ?? file.name);
           }}
           onClear={() => {
             if (graduateAdmissionProofPreview) {
@@ -3381,12 +3641,13 @@ function SectionMAdditionalDocumentsPanel({
             maxSizeMb={10}
             preview={staffEmploymentProofPreview}
             fileName={staffEmploymentProofFileName}
-            onFileSelect={(file, previewUrl) => {
+            documentField="staffEmploymentProof"
+            onFileSelect={(file, previewUrl, storedName) => {
               if (staffEmploymentProofPreview) {
                 URL.revokeObjectURL(staffEmploymentProofPreview);
               }
               setStaffEmploymentProofPreview(previewUrl);
-              setStaffEmploymentProofFileName(file.name);
+              setStaffEmploymentProofFileName(storedName ?? file.name);
             }}
             onClear={() => {
               if (staffEmploymentProofPreview) {
@@ -3405,12 +3666,13 @@ function SectionMAdditionalDocumentsPanel({
             maxSizeMb={10}
             preview={staffHostCommitmentPreview}
             fileName={staffHostCommitmentLetterFileName}
-            onFileSelect={(file, previewUrl) => {
+            documentField="staffHostCommitmentLetter"
+            onFileSelect={(file, previewUrl, storedName) => {
               if (staffHostCommitmentPreview) {
                 URL.revokeObjectURL(staffHostCommitmentPreview);
               }
               setStaffHostCommitmentPreview(previewUrl);
-              setStaffHostCommitmentLetterFileName(file.name);
+              setStaffHostCommitmentLetterFileName(storedName ?? file.name);
             }}
             onClear={() => {
               if (staffHostCommitmentPreview) {
@@ -3431,12 +3693,13 @@ function SectionMAdditionalDocumentsPanel({
         maxSizeMb={10}
         preview={medicalFitnessPreview}
         fileName={medicalFitnessDeclarationFileName}
-        onFileSelect={(file, previewUrl) => {
+        documentField="medicalFitnessDeclaration"
+        onFileSelect={(file, previewUrl, storedName) => {
           if (medicalFitnessPreview) {
             URL.revokeObjectURL(medicalFitnessPreview);
           }
           setMedicalFitnessPreview(previewUrl);
-          setMedicalFitnessDeclarationFileName(file.name);
+          setMedicalFitnessDeclarationFileName(storedName ?? file.name);
         }}
         onClear={() => {
           if (medicalFitnessPreview) {
@@ -3508,12 +3771,13 @@ function SectionNScholarshipPanel({
           maxSizeMb={1}
           preview={previousScholarshipDeclarationPreview}
           fileName={previousScholarshipDeclarationFileName}
-          onFileSelect={(file, previewUrl) => {
+          documentField="previousScholarshipDeclaration"
+          onFileSelect={(file, previewUrl, storedName) => {
             if (previousScholarshipDeclarationPreview) {
               URL.revokeObjectURL(previousScholarshipDeclarationPreview);
             }
             setPreviousScholarshipDeclarationPreview(previewUrl);
-            setPreviousScholarshipDeclarationFileName(file.name);
+            setPreviousScholarshipDeclarationFileName(storedName ?? file.name);
           }}
           onClear={clearDeclarationUpload}
         />
@@ -4415,6 +4679,7 @@ function DocumentUpload({
   onFileSelect,
   onClear,
   required,
+  documentField,
 }: {
   label: string;
   description?: string;
@@ -4422,10 +4687,16 @@ function DocumentUpload({
   maxSizeMb: number;
   preview: string | null;
   fileName: string | null;
-  onFileSelect: (file: File, previewUrl: string | null) => void;
+  onFileSelect: (
+    file: File,
+    previewUrl: string | null,
+    storedName?: string
+  ) => void;
   onClear: () => void;
   required?: boolean;
+  documentField?: ApplicationDocumentField;
 }) {
+  const uploadContext = useContext(ApplicationUploadContext);
   const isImage =
     preview &&
     fileName &&
@@ -4467,7 +4738,7 @@ function DocumentUpload({
               type="file"
               accept={accept}
               className="sr-only"
-              onChange={(e) => {
+              onChange={async (e) => {
                 const file = e.target.files?.[0];
                 if (!file) return;
                 if (file.size > maxSizeMb * 1024 * 1024) {
@@ -4478,7 +4749,24 @@ function DocumentUpload({
                 const previewUrl = file.type.startsWith("image/")
                   ? URL.createObjectURL(file)
                   : null;
-                onFileSelect(file, previewUrl);
+                let storedName: string | undefined;
+                if (documentField && uploadContext) {
+                  try {
+                    storedName = await uploadContext.uploadDocument(
+                      documentField,
+                      file
+                    );
+                  } catch (err) {
+                    alert(
+                      err instanceof Error
+                        ? err.message
+                        : "Could not upload file. Save your progress and try again."
+                    );
+                    e.target.value = "";
+                    return;
+                  }
+                }
+                onFileSelect(file, previewUrl, storedName);
                 e.target.value = "";
               }}
             />
@@ -4507,6 +4795,8 @@ function ProfilePictureUpload({
   onFileSelect: (file: File, previewUrl: string) => void;
   onClear: () => void;
 }) {
+  const uploadContext = useContext(ApplicationUploadContext);
+
   return (
     <div>
       <p className="text-sm font-medium text-slate-800 sm:text-base">
@@ -4535,11 +4825,25 @@ function ProfilePictureUpload({
               type="file"
               accept="image/jpeg,image/png,image/webp"
               className="sr-only"
-              onChange={(e) => {
+              onChange={async (e) => {
                 const file = e.target.files?.[0];
-                if (file) {
-                  onFileSelect(file, URL.createObjectURL(file));
+                if (!file) return;
+                const previewUrl = URL.createObjectURL(file);
+                if (uploadContext) {
+                  try {
+                    await uploadContext.uploadDocument("profile", file);
+                  } catch (err) {
+                    URL.revokeObjectURL(previewUrl);
+                    alert(
+                      err instanceof Error
+                        ? err.message
+                        : "Could not upload profile picture. Save your progress and try again."
+                    );
+                    e.target.value = "";
+                    return;
+                  }
                 }
+                onFileSelect(file, previewUrl);
                 e.target.value = "";
               }}
             />

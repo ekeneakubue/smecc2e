@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { authenticateUser, safeRedirectPath } from "@/lib/auth-service";
+import { portalForRole } from "@/lib/dashboard-portal";
 import {
   AUTH_SESSION_COOKIE,
   authSessionCookieOptions,
@@ -22,9 +23,12 @@ export async function POST(request: Request) {
     if ("error" in result) {
       return NextResponse.json({ error: result.error }, { status: 401 });
     }
-    if (result.user.role !== "Coordinator") {
+    if (!portalForRole(result.user.role)) {
       return NextResponse.json(
-        { error: "Only coordinators can access this dashboard." },
+        {
+          error:
+            "Only coordinators and administrators can access the dashboard.",
+        },
         { status: 403 }
       );
     }
@@ -32,7 +36,7 @@ export async function POST(request: Request) {
     const response = NextResponse.json({
       ok: true,
       user: result.user,
-      redirectTo: safeRedirectPath(body.redirect),
+      redirectTo: safeRedirectPath(body.redirect, result.user.role),
     });
 
     const opts = await authSessionCookieOptions(

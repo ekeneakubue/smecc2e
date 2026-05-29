@@ -1,4 +1,7 @@
 import { randomBytes } from "crypto";
+import type { ApplicationPayload } from "./application-types";
+import { applicantPrimaryEmail } from "./application-types";
+import { getVerifiedEmailFromCookie } from "./verification-session";
 import { prisma } from "./prisma";
 
 export type VerificationToken = {
@@ -87,6 +90,31 @@ export async function isEmailVerified(email: string): Promise<boolean> {
     where: { email: normalized },
   });
   return Boolean(row);
+}
+
+/** Accepts DB verification or the httpOnly session cookie from the verify link. */
+export async function isApplicantEmailVerifiedForSubmit(
+  payload: ApplicationPayload
+): Promise<boolean> {
+  const candidates = new Set<string>();
+  const registration = normalizeEmail(payload.email ?? "");
+  const primary = normalizeEmail(applicantPrimaryEmail(payload) ?? "");
+  if (registration) candidates.add(registration);
+  if (primary) candidates.add(primary);
+
+  for (const email of candidates) {
+    if (await isEmailVerified(email)) {
+      return true;
+    }
+  }
+
+  const cookieEmail = await getVerifiedEmailFromCookie();
+  if (cookieEmail && candidates.has(cookieEmail)) {
+    await markEmailVerified(cookieEmail);
+    return true;
+  }
+
+  return false;
 }
 
 export async function markEmailVerified(email: string): Promise<void> {

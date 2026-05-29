@@ -1,5 +1,6 @@
 import { cookies } from "next/headers";
 import type { DashboardUser } from "./dashboard-users";
+import { SESSION_IDLE_TIMEOUT_MS } from "./session-constants";
 
 export const AUTH_SESSION_COOKIE = "smecc2e_auth";
 
@@ -8,6 +9,8 @@ export type SessionClaims = {
   publicId: string;
   role: DashboardUser["role"];
   exp: number;
+  /** Last activity timestamp (ms). Absent on legacy tokens. */
+  iat?: number;
 };
 
 function sessionSecret(): string {
@@ -82,10 +85,12 @@ async function hmacVerify(payload: string, sig: string): Promise<boolean> {
 
 export async function signSessionToken(
   publicId: string,
-  role: DashboardUser["role"]
+  role: DashboardUser["role"],
+  options?: { exp?: number; iat?: number }
 ): Promise<string> {
-  const exp = Date.now() + SESSION_TTL_MS;
-  const payload = `${publicId}.${role}.${exp}`;
+  const exp = options?.exp ?? Date.now() + SESSION_TTL_MS;
+  const iat = options?.iat ?? Date.now();
+  const payload = `${publicId}.${role}.${exp}.${iat}`;
   const sig = await hmacSign(payload);
   return `${payload}.${sig}`;
 }
@@ -103,11 +108,22 @@ export async function verifySessionToken(
   if (!(await hmacVerify(payload, sig))) return null;
 
   const parts = payload.split(".");
-  if (parts.length !== 3) return null;
+  if (parts.length !== 3 && parts.length !== 4) return null;
+
   const publicId = parts[0] ?? "";
   const role = parts[1] as DashboardUser["role"];
   const exp = parseInt(parts[2] ?? "", 10);
+  const iat =
+    parts.length === 4 ? parseInt(parts[3] ?? "", 10) : undefined;
+
   if (!publicId || !Number.isFinite(exp) || Date.now() > exp) return null;
+  if (
+    parts.length === 4 &&
+    (!Number.isFinite(iat) ||
+      Date.now() - iat > SESSION_IDLE_TIMEOUT_MS)
+  ) {
+    return null;
+  }
   if (
     role !== "Coordinator" &&
     role !== "Reviewer" &&
@@ -116,20 +132,39 @@ export async function verifySessionToken(
     return null;
   }
 
-  return { publicId, role, exp };
+  return { publicId, role, exp, iat };
+}
+
+function sessionCookieMaxAge(exp: number): number {
+  return Math.max(1, Math.floor((exp - Date.now()) / 1000));
 }
 
 export async function authSessionCookieOptions(
   publicId: string,
   role: DashboardUser["role"]
 ) {
+  const exp = Date.now() + SESSION_TTL_MS;
   return {
     httpOnly: true,
     sameSite: "lax" as const,
     secure: process.env.NODE_ENV === "production",
     path: "/",
-    maxAge: Math.floor(SESSION_TTL_MS / 1000),
-    value: await signSessionToken(publicId, role),
+    maxAge: sessionCookieMaxAge(exp),
+    value: await signSessionToken(publicId, role, { exp }),
+  };
+}
+
+export async function refreshedAuthSessionCookieOptions(claims: SessionClaims) {
+  return {
+    httpOnly: true,
+    sameSite: "lax" as const,
+    secure: process.env.NODE_ENV === "production",
+    path: "/",
+    maxAge: sessionCookieMaxAge(claims.exp),
+    value: await signSessionToken(claims.publicId, claims.role, {
+      exp: claims.exp,
+      iat: Date.now(),
+    }),
   };
 }
 

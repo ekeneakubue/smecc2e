@@ -1,4 +1,8 @@
 import type { DashboardUser } from "./dashboard-users";
+import {
+  defaultDashboardPathForRole,
+  safeDashboardRedirect,
+} from "./dashboard-portal";
 import { mapPrismaUser } from "./prisma-mappers";
 import { verifyPassword } from "./password";
 import { prisma } from "./prisma";
@@ -59,11 +63,28 @@ export async function requireCoordinatorSessionUser(): Promise<DashboardUser> {
   return user;
 }
 
+export async function requireAdministratorSessionUser(): Promise<DashboardUser> {
+  const user = await requireSessionUser();
+  if (user.role !== "Administrator") {
+    throw new AuthError("Forbidden", 403);
+  }
+  return user;
+}
+
+/** Coordinators and administrators may access dashboard APIs. */
+export async function requireDashboardSessionUser(): Promise<DashboardUser> {
+  const user = await requireSessionUser();
+  if (user.role !== "Coordinator" && user.role !== "Administrator") {
+    throw new AuthError("Forbidden", 403);
+  }
+  return user;
+}
+
 export function safeRedirectPath(
   redirect: string | null | undefined,
-  fallback = "/coordinator"
+  role: DashboardUser["role"],
+  fallback?: string
 ): string {
-  if (!redirect || !redirect.startsWith("/coordinator")) return fallback;
-  if (redirect.includes("//")) return fallback;
-  return redirect;
+  const defaultFallback = fallback ?? defaultDashboardPathForRole(role);
+  return safeDashboardRedirect(redirect, defaultFallback);
 }

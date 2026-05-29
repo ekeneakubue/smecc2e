@@ -10,6 +10,7 @@ import {
   type ApplicationRecord,
 } from "@/lib/application-types";
 import { hostInstitutions } from "@/lib/programmes";
+import { useDashboardPortal } from "./dashboard-portal-provider";
 import { StatusBadge } from "./coordinator-shared";
 
 function StatCard({
@@ -42,6 +43,7 @@ function StatCard({
 }
 
 export function CoordinatorDashboard() {
+  const { basePath } = useDashboardPortal();
   const router = useRouter();
   const searchParams = useSearchParams();
   const [isHydrated, setIsHydrated] = useState(false);
@@ -97,22 +99,22 @@ export function CoordinatorDashboard() {
   useEffect(() => {
     if (!isHydrated) return;
     if (sectionParam === "users") {
-      router.replace("/coordinator/users");
+      router.replace(`${basePath}/users`);
     } else if (sectionParam === "regions") {
-      router.replace("/coordinator/regions");
+      router.replace(`${basePath}/regions`);
     } else if (
       sectionParam === "institutions" ||
       sectionParam === "universities"
     ) {
-      router.replace("/coordinator/institutions");
+      router.replace(`${basePath}/institutions`);
     } else if (sectionParam === "applicants") {
-      router.replace("/coordinator/applicants");
+      router.replace(`${basePath}/applicants`);
     } else if (sectionParam === "scholars") {
-      router.replace("/coordinator/scholars");
+      router.replace(`${basePath}/scholars`);
     } else if (sectionParam === "programs") {
-      router.replace("/coordinator/programs");
+      router.replace(`${basePath}/programs`);
     }
-  }, [isHydrated, sectionParam, router]);
+  }, [isHydrated, sectionParam, router, basePath]);
 
   useEffect(() => {
     loadDashboardData();
@@ -208,7 +210,7 @@ export function CoordinatorDashboard() {
                       Recent applicants
                     </h2>
                     <Link
-                      href="/coordinator/applicants"
+                      href={`${basePath}/applicants`}
                       className="text-xs font-bold text-[#062763] hover:underline"
                     >
                       View all
@@ -242,7 +244,7 @@ export function CoordinatorDashboard() {
 
               <div className="grid gap-4 sm:grid-cols-3">
                 <Link
-                  href="/coordinator/users"
+                  href={`${basePath}/users`}
                   className="rounded-xl border border-slate-200 bg-white p-5 text-left transition hover:border-[#062763]/30 hover:shadow-sm"
                 >
                   <p className="text-2xl font-bold text-[#062763]">
@@ -253,7 +255,7 @@ export function CoordinatorDashboard() {
                   </p>
                 </Link>
                 <Link
-                  href="/coordinator/programs"
+                  href={`${basePath}/programs`}
                   className="rounded-xl border border-slate-200 bg-white p-5 text-left transition hover:border-[#062763]/30 hover:shadow-sm"
                 >
                   <p className="text-2xl font-bold text-[#062763]">
@@ -267,7 +269,7 @@ export function CoordinatorDashboard() {
                   </p>
                 </Link>
                 <Link
-                  href="/coordinator/scholars"
+                  href={`${basePath}/scholars`}
                   className="rounded-xl border border-slate-200 bg-white p-5 text-left transition hover:border-[#062763]/30 hover:shadow-sm"
                 >
                   <p className="text-2xl font-bold text-emerald-700">
