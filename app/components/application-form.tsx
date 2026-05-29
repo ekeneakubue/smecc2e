@@ -4831,9 +4831,13 @@ function ProfilePictureUpload({
                 const file = e.target.files?.[0];
                 if (!file) return;
                 const previewUrl = URL.createObjectURL(file);
+                let storedName: string | undefined;
                 if (uploadContext) {
                   try {
-                    await uploadContext.uploadDocument("profile", file);
+                    storedName = await uploadContext.uploadDocument(
+                      "profile",
+                      file
+                    );
                   } catch (err) {
                     URL.revokeObjectURL(previewUrl);
                     alert(
@@ -4845,7 +4849,7 @@ function ProfilePictureUpload({
                     return;
                   }
                 }
-                onFileSelect(file, previewUrl);
+                onFileSelect(file, previewUrl, storedName);
                 e.target.value = "";
               }}
             />
