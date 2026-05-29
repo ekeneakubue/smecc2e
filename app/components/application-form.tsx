@@ -2146,7 +2146,7 @@ function RegistrationPanel({
           </p>
           <ProfilePictureUpload
             preview={profilePreview}
-            onFileSelect={(_file, previewUrl, storedName) => {
+            onFileSelect={(_file, previewUrl) => {
               if (profilePreview?.startsWith("blob:")) {
                 URL.revokeObjectURL(profilePreview);
               }
