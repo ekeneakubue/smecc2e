@@ -14,8 +14,7 @@ export default function LoginPage() {
       <div className="relative flex flex-1 flex-col items-center justify-center px-4 py-12 sm:py-16">
         <LoginForm />
         <p className="mt-8 max-w-sm text-center text-xs leading-5 text-slate-500">
-          Access is limited to coordinators, reviewers, and administrators
-          registered by your institution.
+          Access is limited to authorized staff registered by your institution.
         </p>
       </div>
       <SiteFooter />

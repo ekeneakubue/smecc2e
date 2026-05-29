@@ -73,11 +73,8 @@ function LoginFormContent() {
             </div>
           </div>
           <h1 className="mt-4 text-xl font-bold tracking-tight">
-            Dashboard login
+            Sign in to access your dashboard
           </h1>
-          <p className="mt-1 text-sm text-blue-100/90">
-            Sign in as coordinator or administrator
-          </p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-5 px-6 py-8">

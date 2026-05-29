@@ -21,6 +21,12 @@ const ApplicationUploadContext = createContext<{
   ) => Promise<string>;
 } | null>(null);
 
+type ApplicationFileSelectHandler = (
+  file: File,
+  previewUrl: string | null,
+  storedName?: string
+) => void;
+
 const DOCUMENT_FIELD_PAYLOAD_KEY: Record<
   ApplicationDocumentField,
   keyof ApplicationRecord | "profileUploaded"
@@ -4687,11 +4693,7 @@ function DocumentUpload({
   maxSizeMb: number;
   preview: string | null;
   fileName: string | null;
-  onFileSelect: (
-    file: File,
-    previewUrl: string | null,
-    storedName?: string
-  ) => void;
+  onFileSelect: ApplicationFileSelectHandler;
   onClear: () => void;
   required?: boolean;
   documentField?: ApplicationDocumentField;
@@ -4792,7 +4794,7 @@ function ProfilePictureUpload({
   onClear,
 }: {
   preview: string | null;
-  onFileSelect: (file: File, previewUrl: string) => void;
+  onFileSelect: ApplicationFileSelectHandler;
   onClear: () => void;
 }) {
   const uploadContext = useContext(ApplicationUploadContext);

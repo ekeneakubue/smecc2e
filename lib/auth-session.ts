@@ -113,16 +113,15 @@ export async function verifySessionToken(
   const publicId = parts[0] ?? "";
   const role = parts[1] as DashboardUser["role"];
   const exp = parseInt(parts[2] ?? "", 10);
-  const iat =
-    parts.length === 4 ? parseInt(parts[3] ?? "", 10) : undefined;
-
   if (!publicId || !Number.isFinite(exp) || Date.now() > exp) return null;
-  if (
-    parts.length === 4 &&
-    (!Number.isFinite(iat) ||
-      Date.now() - iat > SESSION_IDLE_TIMEOUT_MS)
-  ) {
-    return null;
+  if (parts.length === 4) {
+    const iat = parseInt(parts[3] ?? "", 10);
+    if (
+      !Number.isFinite(iat) ||
+      Date.now() - iat > SESSION_IDLE_TIMEOUT_MS
+    ) {
+      return null;
+    }
   }
   if (
     role !== "Coordinator" &&
@@ -132,7 +131,15 @@ export async function verifySessionToken(
     return null;
   }
 
-  return { publicId, role, exp, iat };
+  const iat =
+    parts.length === 4 ? parseInt(parts[3] ?? "", 10) : undefined;
+
+  return {
+    publicId,
+    role,
+    exp,
+    iat: Number.isFinite(iat) ? iat : undefined,
+  };
 }
 
 function sessionCookieMaxAge(exp: number): number {
