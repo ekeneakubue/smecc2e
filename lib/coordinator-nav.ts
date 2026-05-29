@@ -18,11 +18,6 @@ export function buildDashboardNav(basePath: string): CoordinatorNavItem[] {
   return [
     { id: "overview", label: "Overview", href: root },
     { id: "users", label: "Users", href: `${root}/users` },
-    { id: "regions", label: "Regions", href: `${root}/regions` },
-    { id: "institutions", label: "Institutions", href: `${root}/institutions` },
-    { id: "applicants", label: "Applicants", href: `${root}/applicants` },
-    { id: "scholars", label: "Scholars", href: `${root}/scholars` },
-    { id: "programs", label: "Programs", href: `${root}/programs` },
   ];
 }
 

@@ -42,8 +42,14 @@ export function StatusBadge({ status }: { status: ApplicationStatus }) {
     draft: "bg-slate-200 text-slate-800",
     pending: "bg-amber-200 text-amber-950",
     under_review: "bg-sky-200 text-sky-950",
+    evaluation: "bg-violet-200 text-violet-950",
+    interview: "bg-indigo-200 text-indigo-950",
+    final_evaluation: "bg-purple-200 text-purple-950",
+    offered: "bg-emerald-200 text-emerald-950",
+    reserved: "bg-orange-200 text-orange-950",
     approved: "bg-emerald-200 text-emerald-950",
     rejected: "bg-red-200 text-red-950",
+    pre_departure: "bg-teal-200 text-teal-950",
   };
   return (
     <span
@@ -117,17 +123,29 @@ export function ApplicationDetailPanel({
   selected,
   updatingStatus,
   onStatusChange,
+  collapsibleSections = false,
+  embedded = false,
 }: {
   selected: ApplicationRecord;
   updatingStatus: boolean;
   onStatusChange: (id: string, status: ApplicationStatus) => void;
+  /** Collapse each detail block (registration, documents, etc.) in an accordion. */
+  collapsibleSections?: boolean;
+  /** Inline accordion row (no max-height scroll container). */
+  embedded?: boolean;
 }) {
   const sections = buildApplicantDetailSections(selected, {
     profileUploaded: selected.profileUploaded,
   });
 
   return (
-    <div className="max-h-[calc(100dvh-8rem)] overflow-y-auto p-4 sm:p-5">
+    <div
+      className={
+        embedded
+          ? "p-4 sm:p-5"
+          : "max-h-[calc(100dvh-8rem)] overflow-y-auto p-4 sm:p-5"
+      }
+    >
       <div className="flex flex-wrap items-start justify-between gap-3 border-b border-slate-100 pb-4">
         <div>
           <h2 className="text-lg font-bold text-[#062763]">
@@ -166,23 +184,58 @@ export function ApplicationDetailPanel({
         )}
       </p>
 
-      <div className="mt-6 space-y-6">
-        {sections.map((section) => (
-          <section key={section.title}>
-            <h3 className="text-sm font-extrabold text-[#062763]">
-              {section.title}
-            </h3>
-            <dl className="mt-2 rounded-lg border border-slate-100 bg-slate-50/50 px-3">
-              {section.rows.map((row) => (
-                <DetailRow
-                  key={`${section.title}-${row.label}`}
-                  row={row}
-                  applicationId={selected.id}
-                />
-              ))}
-            </dl>
-          </section>
-        ))}
+      <div className={collapsibleSections ? "mt-6 space-y-2" : "mt-6 space-y-6"}>
+        {sections.map((section, index) =>
+          collapsibleSections ? (
+            <details
+              key={section.title}
+              open={index === 0}
+              className="group rounded-lg border border-slate-200 bg-white"
+            >
+              <summary className="flex cursor-pointer list-none items-center justify-between gap-2 px-4 py-3 text-sm font-extrabold text-[#062763] marker:content-none [&::-webkit-details-marker]:hidden">
+                {section.title}
+                <svg
+                  className="h-4 w-4 shrink-0 text-[#062763] transition group-open:rotate-180"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                  strokeWidth={2}
+                  aria-hidden
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M19 9l-7 7-7-7"
+                  />
+                </svg>
+              </summary>
+              <dl className="border-t border-slate-100 bg-slate-50/50 px-3">
+                {section.rows.map((row) => (
+                  <DetailRow
+                    key={`${section.title}-${row.label}`}
+                    row={row}
+                    applicationId={selected.id}
+                  />
+                ))}
+              </dl>
+            </details>
+          ) : (
+            <section key={section.title}>
+              <h3 className="text-sm font-extrabold text-[#062763]">
+                {section.title}
+              </h3>
+              <dl className="mt-2 rounded-lg border border-slate-100 bg-slate-50/50 px-3">
+                {section.rows.map((row) => (
+                  <DetailRow
+                    key={`${section.title}-${row.label}`}
+                    row={row}
+                    applicationId={selected.id}
+                  />
+                ))}
+              </dl>
+            </section>
+          )
+        )}
       </div>
     </div>
   );

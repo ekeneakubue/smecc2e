@@ -13,6 +13,7 @@ import {
   regionNameForCountry,
   type RegionRecord,
 } from "@/lib/regions";
+import { AFRICAN_COUNTRY_OPTIONS } from "@/lib/african-countries";
 
 const ApplicationUploadContext = createContext<{
   uploadDocument: (
@@ -839,9 +840,14 @@ export function ApplicationForm() {
     }
   }, []);
 
-  const countryOptionsList = useMemo(
+  const nationalityCountryOptions = useMemo(
     () => countriesFromRegions(regionsList),
     [regionsList]
+  );
+
+  const residenceCountryOptions = useMemo(
+    () => [...AFRICAN_COUNTRY_OPTIONS],
+    []
   );
 
   const update = (field: keyof typeof form, value: string | boolean) => {
@@ -855,20 +861,17 @@ export function ApplicationForm() {
   };
 
   const handleNationalityChange = (country: string) => {
-    setForm((prev) => {
-      const next = { ...prev, nationality: country };
-      if (!prev.countryOfResidence.trim()) {
-        next.region = regionNameForCountry(regionsList, country);
-      }
-      return next;
-    });
+    setForm((prev) => ({
+      ...prev,
+      nationality: country,
+      region: regionNameForCountry(regionsList, country),
+    }));
   };
 
   const handleCountryOfResidenceChange = (country: string) => {
     setForm((prev) => ({
       ...prev,
       countryOfResidence: country,
-      region: regionNameForCountry(regionsList, country),
     }));
   };
 
@@ -1045,12 +1048,8 @@ export function ApplicationForm() {
   useEffect(() => {
     if (!regionsList.length) return;
     setForm((prev) => {
-      let region = prev.region;
-      if (prev.countryOfResidence.trim()) {
-        region = regionNameForCountry(regionsList, prev.countryOfResidence);
-      } else if (prev.nationality.trim()) {
-        region = regionNameForCountry(regionsList, prev.nationality);
-      }
+      if (!prev.nationality.trim()) return prev;
+      const region = regionNameForCountry(regionsList, prev.nationality);
       if (region === prev.region) return prev;
       return { ...prev, region };
     });
@@ -1424,7 +1423,8 @@ export function ApplicationForm() {
             verifyDevLink,
             verifyError,
             onSendVerification: handleSendVerification,
-            countryOptions: countryOptionsList,
+            countryOptions: nationalityCountryOptions,
+            residenceCountryOptions,
             regionsLoading,
             onNationalityChange: handleNationalityChange,
             onCountryOfResidenceChange: handleCountryOfResidenceChange,
@@ -1665,6 +1665,7 @@ function renderPageContent({
   verifyError,
   onSendVerification,
   countryOptions,
+  residenceCountryOptions,
   regionsLoading,
   onNationalityChange,
   onCountryOfResidenceChange,
@@ -1756,6 +1757,7 @@ function renderPageContent({
   verifyError: string | null;
   onSendVerification: () => void;
   countryOptions: string[];
+  residenceCountryOptions: string[];
   regionsLoading: boolean;
   onNationalityChange: (country: string) => void;
   onCountryOfResidenceChange: (country: string) => void;
@@ -1854,6 +1856,7 @@ function renderPageContent({
           verifyError={verifyError}
           onSendVerification={onSendVerification}
           countryOptions={countryOptions}
+          residenceCountryOptions={residenceCountryOptions}
           regionsLoading={regionsLoading}
           onNationalityChange={onNationalityChange}
           onCountryOfResidenceChange={onCountryOfResidenceChange}
@@ -2055,6 +2058,7 @@ function RegistrationPanel({
   verifyError,
   onSendVerification,
   countryOptions,
+  residenceCountryOptions,
   regionsLoading,
   onNationalityChange,
   onCountryOfResidenceChange,
@@ -2071,6 +2075,7 @@ function RegistrationPanel({
   verifyError: string | null;
   onSendVerification: () => void;
   countryOptions: string[];
+  residenceCountryOptions: string[];
   regionsLoading: boolean;
   onNationalityChange: (country: string) => void;
   onCountryOfResidenceChange: (country: string) => void;
@@ -2183,11 +2188,9 @@ function RegistrationPanel({
             label="Country of Residence"
             value={form.countryOfResidence}
             onChange={onCountryOfResidenceChange}
-            options={countryOptions}
-            placeholder={
-              regionsLoading ? "Loading countries…" : "Select country"
-            }
-            disabled={regionsLoading || countryOptions.length === 0}
+            options={residenceCountryOptions}
+            placeholder="Select country"
+            description="All African countries."
           />
           <SelectField
             label="Region"
@@ -2195,12 +2198,12 @@ function RegistrationPanel({
             onChange={() => {}}
             options={form.region ? [form.region] : []}
             placeholder={
-              form.countryOfResidence || form.nationality
-                ? "No matching region for this country"
-                : "Select a country above"
+              !form.nationality.trim()
+                ? "Select nationality first"
+                : "No matching region for this nationality"
             }
             disabled
-            description="Set automatically from your country of residence (or nationality if residence is not selected)."
+            description="Set automatically from your nationality (country of origin)."
           />
         </>
       ) : (

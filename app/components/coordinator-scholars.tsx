@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   applicantDisplayName,
@@ -9,6 +10,10 @@ import {
   type ApplicationStatus,
 } from "@/lib/application-types";
 import {
+  parseScholarsManagementSection,
+  SCHOLARS_MANAGEMENT_SECTION_LABELS,
+} from "@/lib/coordinator-scholars-nav";
+import {
   ApplicationDetailPanel,
   formatDate,
 } from "./coordinator-shared";
@@ -16,6 +21,10 @@ import { useDashboardPortal } from "./dashboard-portal-provider";
 
 export function CoordinatorScholars() {
   const { basePath } = useDashboardPortal();
+  const searchParams = useSearchParams();
+  const sectionParam = searchParams.get("section");
+  const activeSection = parseScholarsManagementSection(sectionParam);
+  const pageTitle = SCHOLARS_MANAGEMENT_SECTION_LABELS[activeSection];
   const [applications, setApplications] = useState<ApplicationRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -85,7 +94,7 @@ export function CoordinatorScholars() {
       <header className="sticky top-0 z-30 flex items-center justify-between gap-4 border-b border-slate-200 bg-white px-4 py-4 shadow-sm sm:px-6 lg:pl-6">
         <div className="pl-12 lg:pl-0">
           <h1 className="text-lg font-bold text-[#062763] sm:text-xl">
-            Scholars
+            {pageTitle}
           </h1>
           <p className="text-sm font-semibold text-slate-800">
             SMECC2E mobility & scholarship coordination
@@ -102,6 +111,13 @@ export function CoordinatorScholars() {
       </header>
 
       <main className="flex-1 overflow-auto bg-slate-50 p-4 sm:p-6">
+        {activeSection !== "by_category" && (
+          <p className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-semibold text-slate-900">
+            {pageTitle} workflows will be available here. Below is the current
+            list of approved scholars.
+          </p>
+        )}
+
         <div className="mb-6 flex flex-col gap-4 rounded-xl border border-slate-200 bg-white p-4 sm:flex-row sm:flex-wrap sm:items-end sm:p-5">
           <div className="min-w-48 flex-1">
             <label className="block text-xs font-bold text-slate-800">

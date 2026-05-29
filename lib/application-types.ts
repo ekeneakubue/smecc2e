@@ -2,8 +2,14 @@ export type ApplicationStatus =
   | "draft"
   | "pending"
   | "under_review"
+  | "evaluation"
+  | "interview"
+  | "final_evaluation"
+  | "offered"
+  | "reserved"
   | "approved"
-  | "rejected";
+  | "rejected"
+  | "pre_departure";
 
 export type ApplicationPayload = {
   email: string;
@@ -113,25 +119,47 @@ export const APPLICATION_STATUSES: ApplicationStatus[] = [
   "draft",
   "pending",
   "under_review",
+  "evaluation",
+  "interview",
+  "final_evaluation",
+  "offered",
+  "reserved",
   "approved",
   "rejected",
+  "pre_departure",
 ];
 
 /** Statuses shown in coordinator review workflows (excludes in-progress drafts). */
 export const COORDINATOR_APPLICATION_STATUSES: ApplicationStatus[] = [
   "pending",
   "under_review",
+  "evaluation",
+  "interview",
+  "final_evaluation",
+  "offered",
+  "reserved",
   "approved",
   "rejected",
+  "pre_departure",
 ];
 
 export const STATUS_LABELS: Record<ApplicationStatus, string> = {
   draft: "Draft",
   pending: "Pending",
   under_review: "Under review",
+  evaluation: "Evaluation",
+  interview: "Interview",
+  final_evaluation: "Final Evaluation",
+  offered: "Offered",
+  reserved: "Reserved",
   approved: "Approved",
   rejected: "Rejected",
+  pre_departure: "Pre-departure",
 };
+
+export function isApplicationStatus(value: string): value is ApplicationStatus {
+  return APPLICATION_STATUSES.includes(value as ApplicationStatus);
+}
 
 export function applicantDisplayName(app: ApplicationPayload): string {
   return [app.surname, app.firstName, app.middleName].filter(Boolean).join(" ");

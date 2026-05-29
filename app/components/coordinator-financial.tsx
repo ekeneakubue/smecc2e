@@ -1,0 +1,39 @@
+"use client";
+
+import { useSearchParams } from "next/navigation";
+import {
+  FINANCIAL_MANAGEMENT_SECTION_LABELS,
+  parseFinancialManagementSection,
+} from "@/lib/coordinator-financial-nav";
+
+export function CoordinatorFinancial() {
+  const searchParams = useSearchParams();
+  const sectionParam = searchParams.get("section");
+  const activeSection = parseFinancialManagementSection(sectionParam);
+  const pageTitle = FINANCIAL_MANAGEMENT_SECTION_LABELS[activeSection];
+
+  return (
+    <div className="flex min-w-0 flex-1 flex-col">
+      <header className="sticky top-0 z-30 flex items-center justify-between gap-4 border-b border-slate-200 bg-white px-4 py-4 shadow-sm sm:px-6 lg:pl-6">
+        <div className="pl-12 lg:pl-0">
+          <h1 className="text-lg font-bold text-[#062763] sm:text-xl">
+            {pageTitle}
+          </h1>
+          <p className="text-sm font-semibold text-slate-800">
+            Financial management · SMECC2E coordination
+          </p>
+        </div>
+      </header>
+
+      <main className="flex-1 overflow-auto bg-slate-50 p-4 sm:p-6">
+        <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
+          <p className="text-sm font-semibold text-slate-800">
+            {pageTitle} tools and reports will be available here. Use the
+            sidebar flyout under <strong className="text-[#062763]">Financial
+            management</strong> to switch between finance areas.
+          </p>
+        </div>
+      </main>
+    </div>
+  );
+}

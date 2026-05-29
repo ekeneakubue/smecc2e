@@ -35,8 +35,14 @@ enum ScholarshipApplicationStatus {
   draft
   pending
   under_review
+  evaluation
+  interview
+  final_evaluation
+  offered
+  reserved
   approved
   rejected
+  pre_departure
 }
 
 /// One row per scholarship application (all form fields + workflow metadata).

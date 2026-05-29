@@ -8,6 +8,7 @@ import {
   COORDINATOR_APPLICATION_STATUSES,
   STATUS_LABELS,
   type ApplicationRecord,
+  type ApplicationStatus,
 } from "@/lib/application-types";
 import { hostInstitutions } from "@/lib/programmes";
 import { useDashboardPortal } from "./dashboard-portal-provider";
@@ -126,18 +127,14 @@ export function CoordinatorDashboard() {
   );
 
   const stats = useMemo(() => {
-    const counts = {
-      total: applications.length,
-      draft: 0,
-      pending: 0,
-      under_review: 0,
-      approved: 0,
-      rejected: 0,
-    };
+    const byStatus = {} as Record<ApplicationStatus, number>;
     for (const app of applications) {
-      counts[app.status]++;
+      byStatus[app.status] = (byStatus[app.status] ?? 0) + 1;
     }
-    return counts;
+    return {
+      total: applications.length,
+      byStatus,
+    };
   }, [applications]);
 
   return (
@@ -163,9 +160,21 @@ export function CoordinatorDashboard() {
         <div className="space-y-6">
               <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
                 <StatCard label="Total applicants" value={stats.total} />
-                <StatCard label="Scholars (approved)" value={stats.approved} accent="emerald" />
-                <StatCard label="Under review" value={stats.under_review} accent="sky" />
-                <StatCard label="Pending" value={stats.pending} accent="amber" />
+                <StatCard
+                  label="Scholars (approved)"
+                  value={stats.byStatus.approved ?? 0}
+                  accent="emerald"
+                />
+                <StatCard
+                  label="Under review"
+                  value={stats.byStatus.under_review ?? 0}
+                  accent="sky"
+                />
+                <StatCard
+                  label="Pending"
+                  value={stats.byStatus.pending ?? 0}
+                  accent="amber"
+                />
               </div>
 
               <div className="grid gap-6 lg:grid-cols-2">

@@ -21,7 +21,7 @@ export default function AdministratorLayout({
         <Suspense fallback={null}>
           <CoordinatorSidebar />
         </Suspense>
-        <div className="min-h-dvh lg:pl-64">{children}</div>
+        <div className="min-h-dvh lg:pl-72">{children}</div>
       </div>
     </DashboardPortalProvider>
   );
