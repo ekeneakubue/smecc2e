@@ -91,8 +91,20 @@ function ApplicantLoginFormContent() {
 
           {verificationError === "verification_failed" && (
             <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
-              This verification link is invalid or has expired. Request a new
-              one from the{" "}
+              This verification link is invalid or has already been used. If you
+              already verified your email, sign in with the temporary password
+              from your inbox. Otherwise request a new link from the{" "}
+              <Link href="/application?page=2" className="font-semibold underline">
+                application form
+              </Link>
+              .
+            </div>
+          )}
+
+          {verificationError === "expired" && (
+            <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
+              This verification link has expired (links are valid for 24 hours).
+              Request a new one from the{" "}
               <Link href="/application?page=2" className="font-semibold underline">
                 application form
               </Link>

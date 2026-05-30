@@ -62,35 +62,55 @@ export async function createVerificationToken(
 export async function consumeVerificationToken(
   token: string
 ): Promise<
-  { email: string; tempPassword: string | null } | { error: string }
+  | { email: string; tempPassword: string | null; alreadyVerified: boolean }
+  | { error: string; code: "expired" | "not_found" }
 > {
-  const record = await prisma.emailVerificationToken.findUnique({
-    where: { token },
-  });
-
-  if (!record) {
-    return { error: "Invalid or expired verification link." };
-  }
-
-  if (record.expiresAt.getTime() < Date.now()) {
-    await prisma.emailVerificationToken.delete({ where: { token } }).catch(() => {});
+  const trimmed = token.trim();
+  if (!trimmed) {
     return {
-      error: "This verification link has expired. Please request a new one.",
+      error: "Invalid or expired verification link.",
+      code: "not_found",
     };
   }
 
-  const tempPassword = record.tempPassword;
+  const record = await withPrismaRetry(() =>
+    prisma.emailVerificationToken.findUnique({
+      where: { token: trimmed },
+    })
+  );
 
-  await prisma.$transaction([
-    prisma.emailVerificationToken.delete({ where: { token } }),
+  if (!record) {
+    return {
+      error: "Invalid or expired verification link.",
+      code: "not_found",
+    };
+  }
+
+  if (record.expiresAt.getTime() < Date.now()) {
+    await prisma.emailVerificationToken
+      .delete({ where: { token: trimmed } })
+      .catch(() => {});
+    return {
+      error: `This verification link has expired. Links are valid for ${VERIFICATION_TOKEN_TTL_HOURS} hours. Please request a new one.`,
+      code: "expired",
+    };
+  }
+
+  const alreadyVerified = await isEmailVerified(record.email);
+
+  await withPrismaRetry(() =>
     prisma.verifiedApplicantEmail.upsert({
       where: { email: record.email },
       create: { email: record.email },
       update: { verifiedAt: new Date() },
-    }),
-  ]);
+    })
+  );
 
-  return { email: record.email, tempPassword };
+  return {
+    email: record.email,
+    tempPassword: record.tempPassword,
+    alreadyVerified,
+  };
 }
 
 export async function isEmailVerified(email: string): Promise<boolean> {
