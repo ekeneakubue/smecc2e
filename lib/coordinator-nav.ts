@@ -1,6 +1,7 @@
 export type CoordinatorNavId =
   | "overview"
   | "users"
+  | "settings"
   | "regions"
   | "institutions"
   | "applicants"
@@ -18,6 +19,7 @@ export function buildDashboardNav(basePath: string): CoordinatorNavItem[] {
   return [
     { id: "overview", label: "Overview", href: root },
     { id: "users", label: "Users", href: `${root}/users` },
+    { id: "settings", label: "Settings", href: `${root}/settings` },
   ];
 }
 
@@ -33,6 +35,7 @@ export function isDashboardNavActive(
 ): boolean {
   const root = basePath.replace(/\/$/, "");
   if (itemId === "users") return pathname === `${root}/users`;
+  if (itemId === "settings") return pathname === `${root}/settings`;
   if (itemId === "regions") return pathname === `${root}/regions`;
   if (itemId === "institutions") return pathname === `${root}/institutions`;
   if (itemId === "applicants") return pathname === `${root}/applicants`;
@@ -46,6 +49,7 @@ export function isDashboardNavActive(
 export const COORDINATOR_SECTION_TITLES: Record<CoordinatorNavId, string> = {
   overview: "Overview",
   users: "Users",
+  settings: "Settings",
   regions: "Regions",
   institutions: "Institutions",
   applicants: "Applicants",
@@ -57,6 +61,7 @@ export function isCoordinatorNavId(value: string | null): value is CoordinatorNa
   return (
     value === "overview" ||
     value === "users" ||
+    value === "settings" ||
     value === "regions" ||
     value === "institutions" ||
     value === "applicants" ||

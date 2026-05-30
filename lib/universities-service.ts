@@ -57,3 +57,61 @@ export async function createUniversity(
   const universities = await listUniversities();
   return { universities };
 }
+
+export async function updateUniversity(
+  slug: string,
+  name: string,
+  thematicAreas: string[] = []
+): Promise<{ universities: UniversityRecord[] }> {
+  const existing = await prisma.university.findUnique({ where: { slug } });
+  if (!existing) {
+    throw new Error("University not found");
+  }
+
+  const trimmed = name.trim();
+  if (!trimmed) {
+    throw new Error("University name is required");
+  }
+
+  const newSlug = universitySlugFromName(trimmed);
+  const uniqueThematicAreas = [
+    ...new Set(thematicAreas.map((a) => a.trim()).filter(Boolean)),
+  ];
+
+  try {
+    await prisma.university.update({
+      where: { slug },
+      data: {
+        slug: newSlug,
+        name: trimmed,
+        thematicAreas: uniqueThematicAreas,
+      },
+    });
+  } catch (err) {
+    const isPrismaUnique =
+      err &&
+      typeof err === "object" &&
+      "code" in err &&
+      (err as { code: string }).code === "P2002";
+    if (isPrismaUnique) {
+      throw new Error("A university with this name already exists");
+    }
+    throw err;
+  }
+
+  const universities = await listUniversities();
+  return { universities };
+}
+
+export async function deleteUniversity(
+  slug: string
+): Promise<{ universities: UniversityRecord[] }> {
+  const existing = await prisma.university.findUnique({ where: { slug } });
+  if (!existing) {
+    throw new Error("University not found");
+  }
+
+  await prisma.university.delete({ where: { slug } });
+  const universities = await listUniversities();
+  return { universities };
+}

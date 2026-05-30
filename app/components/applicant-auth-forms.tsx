@@ -1,0 +1,343 @@
+"use client";
+
+import Image from "next/image";
+import Link from "next/link";
+import { useRouter, useSearchParams } from "next/navigation";
+import { Suspense, useState } from "react";
+import { MIN_PASSWORD_LENGTH } from "@/lib/password-policy";
+import { applicantPasswordChangedLoginPath } from "@/lib/applicant-login-paths";
+
+function ApplicantLoginFormContent() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const redirect = searchParams.get("redirect");
+  const prefilledEmail = searchParams.get("email") ?? "";
+  const verificationError = searchParams.get("error");
+  const passwordChanged = searchParams.get("password_changed") === "1";
+
+  const [email, setEmail] = useState(prefilledEmail);
+  const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError(null);
+    setLoading(true);
+
+    try {
+      const res = await fetch("/api/auth/applicant/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password }),
+      });
+      const data = (await res.json()) as {
+        ok?: boolean;
+        error?: string;
+        redirectTo?: string;
+        mustChangePassword?: boolean;
+      };
+
+      if (!res.ok) {
+        setError(data.error ?? "Login failed. Please try again.");
+        return;
+      }
+
+      const target =
+        data.redirectTo ??
+        (data.mustChangePassword
+          ? "/applicant/change-password"
+          : "/applicant/application?page=2");
+      router.replace(target);
+      router.refresh();
+    } catch {
+      setError("A network error occurred. Check your connection and try again.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="w-full max-w-md">
+      <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xl shadow-[#062763]/10">
+        <div className="border-b border-slate-100 bg-[#062763] px-6 py-8 text-center text-white">
+          <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-xl bg-white p-2">
+            <div className="relative h-full w-full">
+              <Image
+                src="/images/logo1.png"
+                alt="SMECC2E"
+                fill
+                className="object-contain"
+                priority
+              />
+            </div>
+          </div>
+          <h1 className="mt-4 text-xl font-bold tracking-tight">
+            Applicant dashboard
+          </h1>
+          <p className="mt-2 text-sm text-slate-200">
+            Sign in to continue your scholarship application
+          </p>
+        </div>
+
+        <form onSubmit={handleSubmit} className="space-y-5 px-6 py-8">
+          {passwordChanged && (
+            <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-900">
+              Your password has been updated. Sign in with your new password to
+              continue your application.
+            </div>
+          )}
+
+          {verificationError === "verification_failed" && (
+            <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
+              This verification link is invalid or has expired. Request a new
+              one from the{" "}
+              <Link href="/application?page=2" className="font-semibold underline">
+                application form
+              </Link>
+              .
+            </div>
+          )}
+
+          {verificationError === "missing_token" && (
+            <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
+              Invalid verification link. Please use the link from your email or
+              request a new one.
+            </div>
+          )}
+
+          {error && (
+            <p className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-800">
+              {error}
+            </p>
+          )}
+
+          <div>
+            <label
+              htmlFor="applicant-email"
+              className="block text-xs font-bold text-slate-800"
+            >
+              Email address
+            </label>
+            <input
+              id="applicant-email"
+              type="email"
+              autoComplete="email"
+              required
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              disabled={loading}
+              className="mt-1 w-full rounded-lg border-2 border-slate-300 bg-white px-3 py-2.5 text-sm font-medium text-slate-900 outline-none focus:border-[#062763] focus:ring-2 focus:ring-[#062763]/15 disabled:opacity-50"
+              placeholder="you@example.com"
+            />
+          </div>
+
+          <div>
+            <label
+              htmlFor="applicant-password"
+              className="block text-xs font-bold text-slate-800"
+            >
+              Password
+            </label>
+            <div className="relative mt-1">
+              <input
+                id="applicant-password"
+                type={showPassword ? "text" : "password"}
+                autoComplete="current-password"
+                required
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                disabled={loading}
+                className="w-full rounded-lg border-2 border-slate-300 bg-white py-2.5 pl-3 pr-10 text-sm font-medium text-slate-900 outline-none focus:border-[#062763] focus:ring-2 focus:ring-[#062763]/15 disabled:opacity-50"
+                placeholder="Temporary or new password"
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword((v) => !v)}
+                disabled={loading}
+                className="absolute right-2 top-1/2 -translate-y-1/2 rounded p-1 text-slate-600 hover:bg-slate-100"
+                aria-label={showPassword ? "Hide password" : "Show password"}
+              >
+                {showPassword ? "Hide" : "Show"}
+              </button>
+            </div>
+            <p className="mt-1.5 text-xs text-slate-500">
+              First time? Use the temporary password from your verification email.
+            </p>
+          </div>
+
+          <button
+            type="submit"
+            disabled={loading}
+            className="w-full rounded-lg bg-[#062763] px-4 py-3 text-sm font-semibold text-white transition hover:bg-[#0a3580] disabled:opacity-50"
+          >
+            {loading ? "Signing in…" : "Sign in"}
+          </button>
+        </form>
+      </div>
+
+      <p className="mt-6 text-center text-sm text-slate-600">
+        Haven&apos;t started yet?{" "}
+        <Link href="/application" className="font-semibold text-[#062763] hover:underline">
+          Begin your application
+        </Link>
+      </p>
+    </div>
+  );
+}
+
+export function ApplicantLoginForm() {
+  return (
+    <Suspense
+      fallback={
+        <div className="text-center text-sm font-medium text-slate-600">
+          Loading…
+        </div>
+      }
+    >
+      <ApplicantLoginFormContent />
+    </Suspense>
+  );
+}
+
+function ApplicantChangePasswordFormContent() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const emailParam = searchParams.get("email");
+
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError(null);
+
+    if (newPassword.length < MIN_PASSWORD_LENGTH) {
+      setError(`Password must be at least ${MIN_PASSWORD_LENGTH} characters.`);
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      setError("Passwords do not match.");
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const res = await fetch("/api/auth/applicant/change-password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          newPassword,
+          confirmPassword,
+        }),
+      });
+      const data = (await res.json()) as { error?: string; redirectTo?: string };
+      if (!res.ok) {
+        setError(data.error ?? "Could not update password.");
+        return;
+      }
+      router.replace(
+        data.redirectTo ??
+          applicantPasswordChangedLoginPath(emailParam ?? "")
+      );
+      router.refresh();
+    } catch {
+      setError("Could not update password. Please try again.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="w-full max-w-md">
+      <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xl shadow-[#062763]/10">
+        <div className="border-b border-slate-100 bg-[#062763] px-6 py-8 text-center text-white">
+          <h1 className="text-xl font-bold tracking-tight">Set your password</h1>
+          <p className="mt-2 text-sm text-slate-200">
+            Replace your temporary password before continuing your application
+          </p>
+        </div>
+
+        <form onSubmit={handleSubmit} className="space-y-5 px-6 py-8">
+          <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950">
+            For security, you must choose a new password before accessing your
+            application.
+          </div>
+
+          {error && (
+            <p className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-800">
+              {error}
+            </p>
+          )}
+
+          <div>
+            <label htmlFor="new-password" className="block text-xs font-bold text-slate-800">
+              New password
+            </label>
+            <div className="relative mt-1">
+              <input
+                id="new-password"
+                type={showNewPassword ? "text" : "password"}
+                autoComplete="new-password"
+                required
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+                disabled={loading}
+                className="w-full rounded-lg border-2 border-slate-300 bg-white py-2.5 pl-3 pr-10 text-sm font-medium outline-none focus:border-[#062763] focus:ring-2 focus:ring-[#062763]/15 disabled:opacity-50"
+              />
+              <button
+                type="button"
+                onClick={() => setShowNewPassword((v) => !v)}
+                className="absolute right-2 top-1/2 -translate-y-1/2 rounded p-1 text-xs text-slate-600"
+              >
+                {showNewPassword ? "Hide" : "Show"}
+              </button>
+            </div>
+          </div>
+
+          <div>
+            <label htmlFor="confirm-password" className="block text-xs font-bold text-slate-800">
+              Confirm new password
+            </label>
+            <input
+              id="confirm-password"
+              type={showNewPassword ? "text" : "password"}
+              autoComplete="new-password"
+              required
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+              disabled={loading}
+              className="mt-1 w-full rounded-lg border-2 border-slate-300 bg-white px-3 py-2.5 text-sm font-medium outline-none focus:border-[#062763] focus:ring-2 focus:ring-[#062763]/15 disabled:opacity-50"
+            />
+          </div>
+
+          <button
+            type="submit"
+            disabled={loading}
+            className="w-full rounded-lg bg-[#062763] px-4 py-3 text-sm font-semibold text-white hover:bg-[#0a3580] disabled:opacity-50"
+          >
+            {loading ? "Saving…" : "Save password & continue"}
+          </button>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+export function ApplicantChangePasswordForm() {
+  return (
+    <Suspense
+      fallback={
+        <div className="text-center text-sm font-medium text-slate-600">
+          Loading…
+        </div>
+      }
+    >
+      <ApplicantChangePasswordFormContent />
+    </Suspense>
+  );
+}

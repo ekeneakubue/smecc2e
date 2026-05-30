@@ -254,11 +254,13 @@ model Program {
 
 /// One-time email verification link for application registration (stage 2)
 model EmailVerificationToken {
-  id        String   @id @default(cuid())
-  token     String   @unique
-  email     String
-  expiresAt DateTime @map("expires_at")
-  createdAt DateTime @default(now()) @map("created_at")
+  id           String   @id @default(cuid())
+  token        String   @unique
+  email        String
+  /// Shown once on the verify success page (deleted with the token)
+  tempPassword String?  @map("temp_password")
+  expiresAt    DateTime @map("expires_at")
+  createdAt    DateTime @default(now()) @map("created_at")
 
   @@index([email])
   @@index([expiresAt])
@@ -271,4 +273,15 @@ model VerifiedApplicantEmail {
   verifiedAt DateTime @default(now()) @map("verified_at")
 
   @@map("verified_applicant_emails")
+}
+
+/// Login credentials for verified applicants (separate from staff User)
+model ApplicantAccount {
+  email              String   @id
+  passwordHash       String   @map("password_hash")
+  mustChangePassword Boolean  @default(true) @map("must_change_password")
+  verifiedAt         DateTime @default(now()) @map("verified_at")
+  updatedAt          DateTime @updatedAt @map("updated_at")
+
+  @@map("applicant_accounts")
 }

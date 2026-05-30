@@ -5,6 +5,10 @@ import {
   verifySessionToken,
 } from "@/lib/auth-session";
 import {
+  APPLICANT_SESSION_COOKIE,
+  verifyApplicantSessionToken,
+} from "@/lib/applicant-session";
+import {
   DASHBOARD_PORTALS,
   isDashboardPath,
   portalForRole,
@@ -12,11 +16,65 @@ import {
   safeDashboardRedirect,
 } from "@/lib/dashboard-portal";
 
+const APPLICANT_PUBLIC_PATHS = new Set([
+  "/applicant/login",
+]);
+
+const APPLICANT_CONTINUE_PATH = "/applicant/application?page=2";
+const APPLICANT_CHANGE_PASSWORD_PATH = `/applicant/change-password?redirect=${encodeURIComponent(APPLICANT_CONTINUE_PATH)}`;
+
+function isApplicantPath(pathname: string): boolean {
+  return pathname === "/applicant" || pathname.startsWith("/applicant/");
+}
+
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const token = request.cookies.get(AUTH_SESSION_COOKIE)?.value;
   const session = await verifySessionToken(token);
   const isLoggedIn = Boolean(session);
+
+  const applicantToken = request.cookies.get(APPLICANT_SESSION_COOKIE)?.value;
+  const applicantSession = await verifyApplicantSessionToken(applicantToken);
+  const applicantLoggedIn = Boolean(applicantSession);
+
+  if (isApplicantPath(pathname)) {
+    if (APPLICANT_PUBLIC_PATHS.has(pathname)) {
+      const freshVerification =
+        request.nextUrl.searchParams.get("verified") === "1";
+      if (applicantLoggedIn && applicantSession && !freshVerification) {
+        const target = applicantSession.mustChangePassword
+          ? APPLICANT_CHANGE_PASSWORD_PATH
+          : APPLICANT_CONTINUE_PATH;
+        return NextResponse.redirect(new URL(target, request.url));
+      }
+      return NextResponse.next();
+    }
+
+    if (!applicantLoggedIn) {
+      const loginUrl = new URL("/applicant/login", request.url);
+      loginUrl.searchParams.set("redirect", pathname);
+      return NextResponse.redirect(loginUrl);
+    }
+
+    if (
+      applicantSession?.mustChangePassword &&
+      pathname !== "/applicant/change-password"
+    ) {
+      return NextResponse.redirect(
+        new URL(APPLICANT_CHANGE_PASSWORD_PATH, request.url)
+      );
+    }
+
+    if (
+      pathname === "/applicant/change-password" &&
+      applicantSession &&
+      !applicantSession.mustChangePassword
+    ) {
+      return NextResponse.redirect(new URL(APPLICANT_CONTINUE_PATH, request.url));
+    }
+
+    return NextResponse.next();
+  }
 
   if (isDashboardPath(pathname)) {
     const portalKey = portalKeyFromPath(pathname);
@@ -49,9 +107,26 @@ export async function middleware(request: NextRequest) {
     }
   }
 
+  if (pathname === "/application") {
+    const pageParam = request.nextUrl.searchParams.get("page");
+    const pageNum = pageParam ? parseInt(pageParam, 10) : 1;
+    if (pageNum > 2 && !applicantLoggedIn) {
+      const loginUrl = new URL("/applicant/login", request.url);
+      loginUrl.searchParams.set("redirect", "/applicant/application");
+      return NextResponse.redirect(loginUrl);
+    }
+  }
+
   return NextResponse.next();
 }
 
 export const config = {
-  matcher: ["/coordinator/:path*", "/administrator/:path*", "/login"],
+  matcher: [
+    "/coordinator/:path*",
+    "/administrator/:path*",
+    "/login",
+    "/application",
+    "/applicant",
+    "/applicant/:path*",
+  ],
 };

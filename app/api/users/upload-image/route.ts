@@ -1,6 +1,7 @@
 import { mkdir, writeFile } from "fs/promises";
 import path from "path";
 import { NextResponse } from "next/server";
+import { AuthError, requireDashboardSessionUser } from "@/lib/auth-service";
 
 const MAX_BYTES = 2 * 1024 * 1024;
 const ALLOWED_TYPES = new Set([
@@ -12,6 +13,7 @@ const ALLOWED_TYPES = new Set([
 
 export async function POST(request: Request) {
   try {
+    await requireDashboardSessionUser();
     const formData = await request.formData();
     const file = formData.get("file");
 
@@ -52,6 +54,12 @@ export async function POST(request: Request) {
     const url = `/uploads/users/${filename}`;
     return NextResponse.json({ url }, { status: 201 });
   } catch (err) {
+    if (err instanceof AuthError) {
+      return NextResponse.json(
+        { error: err.status === 403 ? "Forbidden" : "Unauthorized" },
+        { status: err.status }
+      );
+    }
     console.error("POST /api/users/upload-image", err);
     return NextResponse.json(
       { error: "Failed to upload image" },

@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useContext, useEffect, useMemo, useRef, useState, createContext } from "react";
 import { GuidelinesPdfViewer } from "./guidelines-pdf-viewer";
@@ -14,6 +15,10 @@ import {
   type RegionRecord,
 } from "@/lib/regions";
 import { AFRICAN_COUNTRY_OPTIONS } from "@/lib/african-countries";
+import { applicantLoginPath, applicantVerifiedLoginPath } from "@/lib/applicant-login-paths";
+
+const ALREADY_VERIFIED_MESSAGE =
+  "The email you entered is already verified, please check your email for login details and proceed to application login.";
 
 const ApplicationUploadContext = createContext<{
   uploadDocument: (
@@ -351,7 +356,13 @@ function programmeNamesForThematicArea(
     .sort((a, b) => a.localeCompare(b));
 }
 
-export function ApplicationForm() {
+export function ApplicationForm({
+  portalMode = false,
+}: {
+  portalMode?: boolean;
+}) {
+  const startOnly = !portalMode;
+  const visiblePageCount = portalMode ? TOTAL_PAGES : 2;
   const router = useRouter();
   const searchParams = useSearchParams();
   const [currentPage, setCurrentPage] = useState(1);
@@ -884,8 +895,8 @@ export function ApplicationForm() {
       const res = await fetch(
         `/api/verify-email/status?email=${encodeURIComponent(email.trim())}`
       );
-      const data = (await res.json()) as { verified: boolean };
-      setEmailVerified(data.verified);
+      const data = (await res.json()) as { verified?: boolean; error?: string };
+      setEmailVerified(Boolean(data.verified));
     } catch {
       setEmailVerified(false);
     }
@@ -896,48 +907,55 @@ export function ApplicationForm() {
       setInstructionsAccepted(true);
     }
 
-    const page = searchParams.get("page");
-    const verified = searchParams.get("verified");
-    if (verified === "1" && page === "2") {
-      setCurrentPage(2);
-      window.scrollTo({ top: 0, behavior: "smooth" });
-      router.replace("/application", { scroll: false });
+    const pageParam = searchParams.get("page");
+    if (pageParam) {
+      const pageNum = parseInt(pageParam, 10);
+      const maxPage = startOnly ? 2 : TOTAL_PAGES;
+      if (pageNum >= 1 && pageNum <= maxPage) {
+        setCurrentPage(pageNum);
+      }
     }
 
     const storedPage = localStorage.getItem(APPLICATION_PAGE_KEY);
     if (storedPage) {
-      const page = parseInt(storedPage, 10);
-      if (page >= 1 && page <= TOTAL_PAGES) {
-        setCurrentPage(page);
+      const pageNum = parseInt(storedPage, 10);
+      const maxPage = startOnly ? 2 : TOTAL_PAGES;
+      if (pageNum >= 1 && pageNum <= maxPage) {
+        setCurrentPage(pageNum);
+      } else if (startOnly) {
+        localStorage.setItem(APPLICATION_PAGE_KEY, "2");
       }
     }
 
     setIsHydrated(true);
-  }, [searchParams, router]);
+  }, [searchParams, startOnly]);
 
   useEffect(() => {
-    if (!isHydrated) return;
+    if (!isHydrated || !portalMode) return;
     let cancelled = false;
     void (async () => {
       try {
-        const res = await fetch("/api/verify-email/session", {
-          cache: "no-store",
-        });
+        const res = await fetch("/api/auth/applicant/me", { cache: "no-store" });
         if (!res.ok || cancelled) return;
-        const data = (await res.json()) as { email?: string | null };
-        const sessionEmail = data.email?.trim();
-        if (!sessionEmail) return;
-        void checkEmailVerified(sessionEmail);
-        setForm((prev) => {
-          const cur = prev.email.trim();
-          if (cur && cur.toLowerCase() !== sessionEmail.toLowerCase()) {
-            return prev;
-          }
-          if (cur.toLowerCase() === sessionEmail.toLowerCase()) {
-            return prev;
-          }
-          return { ...prev, email: sessionEmail };
-        });
+        const data = (await res.json()) as {
+          user?: {
+            email: string;
+            application?: { id: string; status: string } | null;
+          };
+        };
+        const user = data.user;
+        if (!user?.email) return;
+        setEmailVerified(true);
+        setForm((prev) => ({
+          ...prev,
+          email: user.email,
+          personalEmail: prev.personalEmail.trim() ? prev.personalEmail : user.email,
+        }));
+        if (user.application?.id && user.application.status === "draft") {
+          setDraftId(user.application.id);
+          localStorage.setItem(APPLICATION_ID_KEY, user.application.id);
+        }
+        void checkEmailVerified(user.email);
       } catch {
         /* ignore */
       }
@@ -945,7 +963,7 @@ export function ApplicationForm() {
     return () => {
       cancelled = true;
     };
-  }, [isHydrated, checkEmailVerified]);
+  }, [isHydrated, portalMode, checkEmailVerified]);
 
   useEffect(() => {
     if (!isHydrated || !form.email.trim()) return;
@@ -962,9 +980,9 @@ export function ApplicationForm() {
   }, [emailVerified, form.email]);
 
   useEffect(() => {
-    if (!isHydrated || !emailVerified || !form.email.trim() || draftId) return;
+    if (!portalMode || !isHydrated || !emailVerified || !form.email.trim() || draftId) return;
     void ensureApplicationId();
-  }, [isHydrated, emailVerified, form.email, draftId, ensureApplicationId]);
+  }, [portalMode, isHydrated, emailVerified, form.email, draftId, ensureApplicationId]);
 
   const loadDraftByEmail = useCallback(
     async (email: string) => {
@@ -987,7 +1005,7 @@ export function ApplicationForm() {
   );
 
   useEffect(() => {
-    if (!isHydrated || draftLoadedRef.current) return;
+    if (!portalMode || !isHydrated || draftLoadedRef.current) return;
     draftLoadedRef.current = true;
 
     const loadDraft = async () => {
@@ -1016,14 +1034,14 @@ export function ApplicationForm() {
     };
 
     void loadDraft();
-  }, [isHydrated, applyDraftToForm]);
+  }, [portalMode, isHydrated, applyDraftToForm]);
 
   useEffect(() => {
-    if (!isHydrated || !emailVerified) return;
+    if (!portalMode || !isHydrated || !emailVerified) return;
     const email = form.email.trim();
     if (!email || draftId) return;
     void loadDraftByEmail(email);
-  }, [isHydrated, emailVerified, form.email, draftId, loadDraftByEmail]);
+  }, [portalMode, isHydrated, emailVerified, form.email, draftId, loadDraftByEmail]);
 
   useEffect(() => {
     if (!isHydrated) return;
@@ -1089,6 +1107,7 @@ export function ApplicationForm() {
     if (!isHydrated) return false;
     if (!instructionsAccepted) return false;
     if (page === 2) return true;
+    if (startOnly) return false;
     return emailVerified;
   };
 
@@ -1099,8 +1118,11 @@ export function ApplicationForm() {
     if (!instructionsAccepted) {
       return "Accept instructions on page 1 first";
     }
+    if (startOnly && page > 2) {
+      return "Sign in to the applicant dashboard to continue your application";
+    }
     if (page > 2 && !emailVerified) {
-      return "Verify your email on page 2 first";
+      return "Sign in to the applicant dashboard to continue your application";
     }
     return "Complete previous steps first";
   };
@@ -1127,6 +1149,11 @@ export function ApplicationForm() {
     }
     setVerifySending(true);
     try {
+      if (startOnly && emailVerified) {
+        setVerifyMessage(ALREADY_VERIFIED_MESSAGE);
+        return;
+      }
+
       const res = await fetch("/api/verify-email/send", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -1137,13 +1164,18 @@ export function ApplicationForm() {
         message?: string;
         error?: string;
         devLink?: string;
+        devTempPassword?: string;
         sent?: boolean;
       };
       if (!res.ok) {
         setVerifyError(data.error ?? "Could not send verification email.");
         return;
       }
-      setVerifyMessage(data.message ?? "Verification email sent.");
+      setVerifyMessage(
+        data.devTempPassword
+          ? `${data.message ?? "Verification email sent."} Temporary password (dev): ${data.devTempPassword}`
+          : data.message ?? "Verification email sent."
+      );
       if (data.devLink) setVerifyDevLink(data.devLink);
     } catch {
       setVerifyError("Network error. Please try again.");
@@ -1155,6 +1187,16 @@ export function ApplicationForm() {
   const saveProgress = async (nextPage: number): Promise<boolean> => {
     setSaveError(null);
     setSaveMessage(null);
+
+    if (startOnly) {
+      if (currentPage === 1) {
+        localStorage.setItem(APPLICATION_PAGE_KEY, String(Math.min(nextPage, 2)));
+        setSaveMessage("Progress saved.");
+        return true;
+      }
+      setSaveError("Sign in to the applicant dashboard to continue your application.");
+      return false;
+    }
 
     if (currentPage === 1) {
       localStorage.setItem(APPLICATION_PAGE_KEY, String(nextPage));
@@ -1280,13 +1322,14 @@ export function ApplicationForm() {
 
   const handleNext = async () => {
     if (currentPage === 1 && !instructionsAccepted) return;
+    if (startOnly && currentPage >= 2) return;
     if (currentPage === 2 && !emailVerified) {
       setVerifyError(
-        "Please verify your email before continuing. Click “Verify email” and open the link sent to your inbox."
+        "Please verify your email before continuing. Click “Verify email”, then sign in to the applicant dashboard."
       );
       return;
     }
-    if (currentPage >= TOTAL_PAGES) return;
+    if (currentPage >= visiblePageCount) return;
 
     const nextPage = currentPage + 1;
     const saved = await saveProgress(nextPage);
@@ -1330,6 +1373,14 @@ export function ApplicationForm() {
               We could not send a confirmation email. Please save your reference
               number above.
             </p>
+          )}
+          {portalMode && (
+            <a
+              href="/applicant"
+              className="mt-6 inline-flex rounded-lg bg-[#062763] px-6 py-3 text-sm font-semibold text-white hover:bg-[#0a3580]"
+            >
+              Return to applicant dashboard
+            </a>
           )}
         </div>
         <div className="px-6 py-8 text-center sm:px-8">
@@ -1383,7 +1434,7 @@ export function ApplicationForm() {
 
       <PageStepper
         currentPage={currentPage}
-        totalPages={TOTAL_PAGES}
+        totalPages={visiblePageCount}
         canAccessPage={canAccessPage}
         getPageDisabledTitle={getPageDisabledTitle}
         onPageChange={goToPage}
@@ -1392,7 +1443,7 @@ export function ApplicationForm() {
       <form onSubmit={handleSubmit}>
         <div className="border-b border-slate-100 bg-[#062763]/5 px-6 py-4 sm:px-8">
           <p className="text-xs font-semibold uppercase tracking-wider text-[#062763]/60">
-            Page {currentPage} of {TOTAL_PAGES}
+            Page {currentPage} of {visiblePageCount}
           </p>
           <h2 className="mt-1 text-lg font-bold text-[#062763] sm:text-xl">
             {pageTitles[currentPage]}
@@ -1428,6 +1479,7 @@ export function ApplicationForm() {
             regionsLoading,
             onNationalityChange: handleNationalityChange,
             onCountryOfResidenceChange: handleCountryOfResidenceChange,
+            startOnly,
             hostInstitutionOptions: hostInstitutionOptionsList,
             programsByHost,
             setProfileMarkedUploaded,
@@ -1504,7 +1556,15 @@ export function ApplicationForm() {
             >
               Previous
             </button>
-            {currentPage < TOTAL_PAGES ? (
+            {currentPage < visiblePageCount ? (
+              startOnly && currentPage === 2 && emailVerified ? (
+                <Link
+                  href={applicantVerifiedLoginPath(form.email.trim())}
+                  className="rounded-md bg-[#062763] px-6 py-2.5 text-sm font-semibold text-white transition hover:bg-[#0a3a8a]"
+                >
+                  Sign in to continue
+                </Link>
+              ) : (
               <button
                 type="button"
                 onClick={() => void handleNext()}
@@ -1517,6 +1577,7 @@ export function ApplicationForm() {
               >
                 {savingDraft ? "Saving…" : "Next"}
               </button>
+              )
             ) : (
               <button
                 type="submit"
@@ -1669,6 +1730,7 @@ function renderPageContent({
   regionsLoading,
   onNationalityChange,
   onCountryOfResidenceChange,
+  startOnly,
   hostInstitutionOptions,
   programsByHost,
   setProfileMarkedUploaded,
@@ -1761,6 +1823,7 @@ function renderPageContent({
   regionsLoading: boolean;
   onNationalityChange: (country: string) => void;
   onCountryOfResidenceChange: (country: string) => void;
+  startOnly: boolean;
   hostInstitutionOptions: string[];
   programsByHost: Record<string, ProgramRecord[]>;
   academicCertificatesPreview: string | null;
@@ -1860,6 +1923,7 @@ function renderPageContent({
           regionsLoading={regionsLoading}
           onNationalityChange={onNationalityChange}
           onCountryOfResidenceChange={onCountryOfResidenceChange}
+          startOnly={startOnly}
         />
       );
     case 3:
@@ -2062,6 +2126,7 @@ function RegistrationPanel({
   regionsLoading,
   onNationalityChange,
   onCountryOfResidenceChange,
+  startOnly = false,
 }: {
   form: typeof initialForm;
   update: (field: keyof typeof initialForm, value: string | boolean) => void;
@@ -2079,6 +2144,7 @@ function RegistrationPanel({
   regionsLoading: boolean;
   onNationalityChange: (country: string) => void;
   onCountryOfResidenceChange: (country: string) => void;
+  startOnly?: boolean;
 }) {
   return (
     <div className="space-y-8">
@@ -2087,8 +2153,8 @@ function RegistrationPanel({
           Email verification
         </h3>
         <p className="mt-2 text-sm font-medium text-slate-700">
-          Verify your email to continue your registration. A link will be sent to
-          the address below.
+          Verify your email to access your applicant dashboard. The email includes
+          a verification link and a temporary password to sign in.
         </p>
       </div>
 
@@ -2098,31 +2164,42 @@ function RegistrationPanel({
           label="Email address for verification"
           type="email"
           description={
-            emailVerified
+            emailVerified && !startOnly
               ? "This email is verified and cannot be changed."
               : "This is your primary contact email for the application."
           }
           value={form.email}
           onChange={(v) => update("email", v)}
-          disabled={emailVerified}
+          disabled={emailVerified && !startOnly}
         />
+        {emailVerified && startOnly && form.email.trim() && (
+          <div
+            role="alert"
+            className="mt-4 rounded-lg border border-sky-200 bg-sky-50 px-4 py-3 text-sm text-sky-950"
+          >
+            <p className="font-medium">{ALREADY_VERIFIED_MESSAGE}</p>
+            <Link
+              href={applicantLoginPath(form.email.trim())}
+              className="mt-3 inline-flex rounded-lg bg-[#062763] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#0a3580]"
+            >
+              Go to application login
+            </Link>
+          </div>
+        )}
         <div className="mt-4 flex flex-wrap items-center gap-3">
           <button
             type="button"
             onClick={onSendVerification}
-            disabled={verifySending || emailVerified || !form.email.trim()}
+            disabled={
+              verifySending ||
+              !form.email.trim() ||
+              (emailVerified && !startOnly) ||
+              (emailVerified && startOnly)
+            }
             className="rounded-lg bg-[#062763] px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-[#0a3a8a] disabled:cursor-not-allowed disabled:bg-slate-400"
           >
             {verifySending ? "Sending…" : "Verify email"}
           </button>
-          {emailVerified && (
-            <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-100 px-3 py-1 text-xs font-bold text-emerald-900">
-              <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-              </svg>
-              Verified
-            </span>
-          )}
         </div>
         {verifyMessage && (
           <p className="mt-3 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm font-medium text-emerald-900">
@@ -2149,7 +2226,7 @@ function RegistrationPanel({
         )}
       </div>
 
-      {emailVerified ? (
+      {emailVerified && !startOnly ? (
         <>
           <p className="text-sm font-semibold text-emerald-800">
             Email verified. Complete your registration below, then use Next to
@@ -2206,12 +2283,13 @@ function RegistrationPanel({
             description="Set automatically from your nationality (country of origin)."
           />
         </>
-      ) : (
+      ) : !emailVerified ? (
         <p className="rounded-lg border border-slate-200 bg-slate-50 px-4 py-4 text-sm font-medium text-slate-700">
-          After you verify your email via the link sent to your inbox, you will
-          return here to complete your registration details.
+          {startOnly
+            ? "After you verify your email, sign in to the applicant dashboard to continue. Verified email alone does not open the application form."
+            : "After you verify your email via the link sent to your inbox, you will return here to complete your registration details."}
         </p>
-      )}
+      ) : null}
     </div>
   );
 }

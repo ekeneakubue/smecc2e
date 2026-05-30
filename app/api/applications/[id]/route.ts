@@ -5,6 +5,8 @@ import {
   AuthError,
   requireDashboardSessionUser,
 } from "@/lib/auth-service";
+import { requireApplicantOwnsApplication } from "@/lib/applicant-application-auth";
+import { ApplicantAuthError } from "@/lib/applicant-auth-service";
 import {
   getApplication,
   updateApplicationStatus,
@@ -20,11 +22,19 @@ export async function GET(_request: Request, context: RouteContext) {
     if (!application) {
       return NextResponse.json({ error: "Not found" }, { status: 404 });
     }
-    if (application.status !== "draft") {
+    if (application.status === "draft") {
+      await requireApplicantOwnsApplication(application.id);
+    } else {
       await requireDashboardSessionUser();
     }
     return NextResponse.json({ application });
   } catch (err) {
+    if (err instanceof ApplicantAuthError) {
+      return NextResponse.json(
+        { error: err.status === 403 ? "Forbidden" : "Unauthorized" },
+        { status: err.status }
+      );
+    }
     if (err instanceof AuthError) {
       return NextResponse.json(
         { error: err.status === 403 ? "Forbidden" : "Unauthorized" },

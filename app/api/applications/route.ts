@@ -1,6 +1,11 @@
 import { NextResponse } from "next/server";
 import type { ApplicationPayload } from "@/lib/application-types";
 import { AuthError, requireDashboardSessionUser } from "@/lib/auth-service";
+import { assertApplicantPayloadMatchesSession } from "@/lib/applicant-application-auth";
+import {
+  ApplicantAuthError,
+  requireApplicantPasswordChanged,
+} from "@/lib/applicant-auth-service";
 import {
   listApplications,
   submitApplication,
@@ -14,6 +19,12 @@ export async function GET() {
     const applications = await listApplications();
     return NextResponse.json({ applications });
   } catch (err) {
+    if (err instanceof ApplicantAuthError) {
+      return NextResponse.json(
+        { error: err.status === 403 ? "Forbidden" : "Unauthorized" },
+        { status: err.status }
+      );
+    }
     if (err instanceof AuthError) {
       return NextResponse.json(
         { error: err.status === 403 ? "Forbidden" : "Unauthorized" },
@@ -34,10 +45,13 @@ export async function GET() {
 
 export async function POST(request: Request) {
   try {
+    const user = await requireApplicantPasswordChanged();
     const body = (await request.json()) as ApplicationPayload & {
       applicationId?: string;
     };
     const { applicationId, ...payload } = body;
+    assertApplicantPayloadMatchesSession(user, payload);
+
     const record = await submitApplication(payload, applicationId);
     const confirmationEmail = await sendApplicationConfirmationEmail(record);
     return NextResponse.json(
@@ -49,6 +63,12 @@ export async function POST(request: Request) {
       { status: 201 }
     );
   } catch (err) {
+    if (err instanceof ApplicantAuthError) {
+      return NextResponse.json(
+        { error: err.status === 403 ? "Forbidden" : "Unauthorized" },
+        { status: err.status }
+      );
+    }
     console.error("POST /api/applications", err);
     const connectionError = toUserFacingDatabaseError(err);
     const message =

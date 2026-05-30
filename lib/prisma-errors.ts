@@ -35,3 +35,34 @@ export function resolveApiError(err: unknown, fallback: string): string {
     (err instanceof Error ? err.message : fallback)
   );
 }
+
+const DEFAULT_RETRY_ATTEMPTS = 3;
+const DEFAULT_RETRY_DELAY_MS = 1500;
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+/** Retry Prisma calls when Neon or the network drops idle connections. */
+export async function withPrismaRetry<T>(
+  fn: () => Promise<T>,
+  options?: { attempts?: number; delayMs?: number }
+): Promise<T> {
+  const attempts = options?.attempts ?? DEFAULT_RETRY_ATTEMPTS;
+  const delayMs = options?.delayMs ?? DEFAULT_RETRY_DELAY_MS;
+  let lastError: unknown;
+
+  for (let attempt = 0; attempt < attempts; attempt++) {
+    try {
+      return await fn();
+    } catch (err) {
+      lastError = err;
+      const canRetry =
+        isPrismaConnectionError(err) && attempt < attempts - 1;
+      if (!canRetry) throw err;
+      await sleep(delayMs * (attempt + 1));
+    }
+  }
+
+  throw lastError;
+}

@@ -1,5 +1,7 @@
 import { mkdir, writeFile } from "fs/promises";
 import { NextResponse } from "next/server";
+import { requireApplicantOwnsApplication } from "@/lib/applicant-application-auth";
+import { ApplicantAuthError } from "@/lib/applicant-auth-service";
 import {
   buildStoredDocumentName,
   documentDisplayName,
@@ -28,6 +30,7 @@ export async function POST(
 ) {
   try {
     const { id } = await context.params;
+    await requireApplicantOwnsApplication(id);
     const application = await getApplication(id);
     if (!application) {
       return NextResponse.json({ error: "Application not found" }, { status: 404 });
@@ -83,6 +86,12 @@ export async function POST(
       { status: 201 }
     );
   } catch (err) {
+    if (err instanceof ApplicantAuthError) {
+      return NextResponse.json(
+        { error: err.status === 403 ? "Forbidden" : "Unauthorized" },
+        { status: err.status }
+      );
+    }
     console.error("POST /api/applications/[id]/upload", err);
     return NextResponse.json({ error: "Failed to upload document" }, { status: 500 });
   }

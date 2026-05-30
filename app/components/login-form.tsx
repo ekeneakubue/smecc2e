@@ -167,6 +167,13 @@ function LoginFormContent() {
           >
             Application form
           </Link>
+          <span className="mx-2 text-slate-300">·</span>
+          <Link
+            href="/applicant/login"
+            className="font-semibold text-[#062763] hover:underline"
+          >
+            Applicant login
+          </Link>
         </div>
       </div>
     </div>

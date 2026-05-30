@@ -3,7 +3,6 @@
 import Image from "next/image";
 import { useCallback, useRef, useState } from "react";
 import type { DashboardUser } from "@/lib/dashboard-users";
-import { hostInstitutions } from "@/lib/programmes";
 import { useDashboardPortal } from "./dashboard-portal-provider";
 import {
   MIN_PASSWORD_LENGTH,
@@ -18,10 +17,9 @@ const USER_ROLES: DashboardUser["role"][] = [
 
 const USER_STATUSES: DashboardUser["status"][] = ["Active", "Inactive"];
 
-const INSTITUTION_OPTIONS: string[] = [
-  ...hostInstitutions,
-  "SMECC2E Consortium",
-];
+function defaultInstitution(options: string[]): string {
+  return options[0] ?? "";
+}
 
 type CoordinatorUserFormState = {
   name: string;
@@ -271,15 +269,18 @@ function UserAvatar({
 export function CoordinatorUsers({
   initialUsers = [],
   initialLoadError = null,
+  initialInstitutions = [],
 }: {
   initialUsers?: DashboardUser[];
   initialLoadError?: string | null;
+  initialInstitutions?: string[];
 }) {
   const { portalKey } = useDashboardPortal();
   const defaultCreateRole: DashboardUser["role"] =
     portalKey === "administrator" ? "Reviewer" : "Coordinator";
   const createUserRoles: DashboardUser["role"][] =
     portalKey === "administrator" ? ["Reviewer"] : USER_ROLES;
+  const canManageExistingUsers = portalKey !== "administrator";
 
   const [users, setUsers] = useState<DashboardUser[]>(initialUsers);
   const [loading, setLoading] = useState(false);
@@ -298,7 +299,7 @@ export function CoordinatorUsers({
     phoneNumber: "",
     password: "",
     confirmPassword: "",
-    institution: INSTITUTION_OPTIONS[0],
+    institution: defaultInstitution(initialInstitutions),
     role: defaultCreateRole,
     status: "Active" as DashboardUser["status"],
   });
@@ -319,7 +320,7 @@ export function CoordinatorUsers({
     phoneNumber: "",
     password: "",
     confirmPassword: "",
-    institution: INSTITUTION_OPTIONS[0],
+    institution: defaultInstitution(initialInstitutions),
     role: "Coordinator" as DashboardUser["role"],
     status: "Active" as DashboardUser["status"],
   });
@@ -368,7 +369,7 @@ export function CoordinatorUsers({
       phoneNumber: "",
       password: "",
       confirmPassword: "",
-      institution: INSTITUTION_OPTIONS[0],
+      institution: defaultInstitution(initialInstitutions),
       role: defaultCreateRole,
       status: "Active",
     });
@@ -464,7 +465,7 @@ export function CoordinatorUsers({
       phoneNumber: "",
       password: "",
       confirmPassword: "",
-      institution: INSTITUTION_OPTIONS[0],
+      institution: defaultInstitution(initialInstitutions),
       role: "Coordinator",
       status: "Active",
     });
@@ -476,7 +477,7 @@ export function CoordinatorUsers({
     setEditProfilePreview(null);
     setEditProfileFile(null);
     setEditProfileRemoved(false);
-  }, []);
+  }, [initialInstitutions]);
 
   const openEdit = (user: DashboardUser) => {
     if (tableBusy) return;
@@ -673,14 +674,16 @@ export function CoordinatorUsers({
                   <th className="px-5 py-3">Institution</th>
                   <th className="px-5 py-3">Role</th>
                   <th className="px-5 py-3">Status</th>
-                  <th className="px-5 py-3 text-right">Actions</th>
+                  {canManageExistingUsers && (
+                    <th className="px-5 py-3 text-right">Actions</th>
+                  )}
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {users.length === 0 ? (
                   <tr>
                     <td
-                      colSpan={7}
+                      colSpan={canManageExistingUsers ? 7 : 6}
                       className="px-5 py-10 text-center font-semibold text-slate-900"
                     >
                       No users yet. Create one to get started.
@@ -720,29 +723,31 @@ export function CoordinatorUsers({
                       <td className="px-5 py-3">
                         <StatusBadge status={user.status} />
                       </td>
-                      <td className="px-5 py-3 text-right">
-                        <div className="flex justify-end gap-2">
-                          <button
-                            type="button"
-                            onClick={() => openEdit(user)}
-                            disabled={tableBusy}
-                            className={`${actionBtnClass} border-[#062763]/25 text-[#062763] hover:bg-[#062763]/5`}
-                          >
-                            Edit
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setDeletingUser(user);
-                              setDeleteError(null);
-                            }}
-                            disabled={tableBusy}
-                            className={`${actionBtnClass} border-red-200 text-red-700 hover:bg-red-50`}
-                          >
-                            Delete
-                          </button>
-                        </div>
-                      </td>
+                      {canManageExistingUsers && (
+                        <td className="px-5 py-3 text-right">
+                          <div className="flex justify-end gap-2">
+                            <button
+                              type="button"
+                              onClick={() => openEdit(user)}
+                              disabled={tableBusy}
+                              className={`${actionBtnClass} border-[#062763]/25 text-[#062763] hover:bg-[#062763]/5`}
+                            >
+                              Edit
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setDeletingUser(user);
+                                setDeleteError(null);
+                              }}
+                              disabled={tableBusy}
+                              className={`${actionBtnClass} border-red-200 text-red-700 hover:bg-red-50`}
+                            >
+                              Delete
+                            </button>
+                          </div>
+                        </td>
+                      )}
                     </tr>
                   ))
                 )}
@@ -894,7 +899,12 @@ export function CoordinatorUsers({
                   disabled={creating}
                   className={inputClass}
                 >
-                  {INSTITUTION_OPTIONS.map((inst) => (
+                  {!form.institution && (
+                    <option value="" disabled>
+                      Select an institution
+                    </option>
+                  )}
+                  {initialInstitutions.map((inst) => (
                     <option key={inst} value={inst}>
                       {inst}
                     </option>
@@ -1130,12 +1140,13 @@ export function CoordinatorUsers({
                   disabled={updating}
                   className={inputClass}
                 >
-                  {INSTITUTION_OPTIONS.map((inst) => (
+                  {initialInstitutions.map((inst) => (
                     <option key={inst} value={inst}>
                       {inst}
                     </option>
                   ))}
-                  {!INSTITUTION_OPTIONS.includes(editForm.institution) && (
+                  {!initialInstitutions.includes(editForm.institution) &&
+                    editForm.institution && (
                     <option value={editForm.institution}>
                       {editForm.institution}
                     </option>

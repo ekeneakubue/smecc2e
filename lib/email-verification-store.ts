@@ -1,6 +1,7 @@
 import { randomBytes } from "crypto";
 import type { ApplicationPayload } from "./application-types";
 import { applicantPrimaryEmail } from "./application-types";
+import { withPrismaRetry } from "./prisma-errors";
 import { getVerifiedEmailFromCookie } from "./verification-session";
 import { prisma } from "./prisma";
 
@@ -28,23 +29,27 @@ export function isValidEmail(email: string): boolean {
 }
 
 export async function createVerificationToken(
-  email: string
+  email: string,
+  tempPassword?: string | null
 ): Promise<VerificationToken> {
   const normalized = normalizeEmail(email);
   const now = Date.now();
   const token = randomBytes(32).toString("hex");
   const expiresAt = new Date(now + VERIFICATION_TOKEN_TTL_MS);
 
-  await prisma.$transaction([
-    prisma.emailVerificationToken.deleteMany({ where: { email: normalized } }),
-    prisma.emailVerificationToken.create({
-      data: {
-        token,
-        email: normalized,
-        expiresAt,
-      },
-    }),
-  ]);
+  await withPrismaRetry(() =>
+    prisma.$transaction([
+      prisma.emailVerificationToken.deleteMany({ where: { email: normalized } }),
+      prisma.emailVerificationToken.create({
+        data: {
+          token,
+          email: normalized,
+          expiresAt,
+          tempPassword: tempPassword ?? null,
+        },
+      }),
+    ])
+  );
 
   return {
     token,
@@ -56,7 +61,9 @@ export async function createVerificationToken(
 
 export async function consumeVerificationToken(
   token: string
-): Promise<{ email: string } | { error: string }> {
+): Promise<
+  { email: string; tempPassword: string | null } | { error: string }
+> {
   const record = await prisma.emailVerificationToken.findUnique({
     where: { token },
   });
@@ -72,6 +79,8 @@ export async function consumeVerificationToken(
     };
   }
 
+  const tempPassword = record.tempPassword;
+
   await prisma.$transaction([
     prisma.emailVerificationToken.delete({ where: { token } }),
     prisma.verifiedApplicantEmail.upsert({
@@ -81,7 +90,7 @@ export async function consumeVerificationToken(
     }),
   ]);
 
-  return { email: record.email };
+  return { email: record.email, tempPassword };
 }
 
 export async function isEmailVerified(email: string): Promise<boolean> {
