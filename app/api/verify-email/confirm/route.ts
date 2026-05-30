@@ -5,6 +5,7 @@ import {
   APPLICANT_SESSION_COOKIE,
   clearApplicantSessionCookieOptions,
 } from "@/lib/applicant-session";
+import { APPLICANT_LOGIN_PATH } from "@/lib/applicant-login-paths";
 import {
   VERIFIED_EMAIL_COOKIE,
   verifiedEmailCookieOptions,
@@ -15,7 +16,7 @@ function loginErrorUrl(
   code: "verification_failed" | "expired" | "missing_token",
   email?: string
 ): URL {
-  const url = new URL("/applicant/login", request.url);
+  const url = new URL(APPLICANT_LOGIN_PATH, request.url);
   url.searchParams.set("error", code);
   if (email) url.searchParams.set("email", email);
   return url;

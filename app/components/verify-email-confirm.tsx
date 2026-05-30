@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useState } from "react";
 import { VerifyEmailSuccess } from "./verify-email-success";
+import { APPLICANT_LOGIN_PATH } from "@/lib/applicant-login-paths";
 import { VERIFICATION_TOKEN_TTL_HOURS } from "@/lib/verification-constants";
 
 type VerifyEmailConfirmProps = {
@@ -106,7 +107,7 @@ export function VerifyEmailConfirm({ token }: VerifyEmailConfirmProps) {
               Request a new verification email
             </Link>
             <Link
-              href="/applicant/login"
+              href={APPLICANT_LOGIN_PATH}
               className="mt-3 block text-sm font-semibold text-[#062763] hover:underline"
             >
               Go to application login

@@ -3,8 +3,10 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
+import { ApplicantResetPasswordModal } from "./applicant-reset-password-modal";
 import { STATUS_LABELS, type ApplicationStatus } from "@/lib/application-types";
 import type { ApplicantSessionUser } from "@/lib/applicant-auth-service";
+import { APPLICANT_LOGIN_PATH } from "@/lib/applicant-login-paths";
 
 function statusTone(status: ApplicationStatus): string {
   if (status === "draft") return "bg-sky-100 text-sky-900";
@@ -19,6 +21,7 @@ export function ApplicantDashboard() {
   const [user, setUser] = useState<ApplicantSessionUser | null>(null);
   const [loading, setLoading] = useState(true);
   const [loggingOut, setLoggingOut] = useState(false);
+  const [resetPasswordOpen, setResetPasswordOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const loadUser = useCallback(async () => {
@@ -54,7 +57,7 @@ export function ApplicantDashboard() {
     setLoggingOut(true);
     try {
       await fetch("/api/auth/applicant/logout", { method: "POST" });
-      window.location.href = "/applicant/login";
+      window.location.href = APPLICANT_LOGIN_PATH;
     } finally {
       setLoggingOut(false);
     }
@@ -99,15 +102,30 @@ export function ApplicantDashboard() {
           </h1>
           <p className="mt-1 text-sm text-slate-300">{user.email}</p>
         </div>
-        <button
-          type="button"
-          onClick={() => void handleLogout()}
-          disabled={loggingOut}
-          className="rounded-lg border border-white/25 px-4 py-2 text-sm font-semibold text-white transition hover:bg-white/10 disabled:opacity-50"
-        >
-          {loggingOut ? "Signing out…" : "Sign out"}
-        </button>
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setResetPasswordOpen(true)}
+            className="rounded-lg border border-white/25 px-4 py-2 text-sm font-semibold text-white transition hover:bg-white/10"
+          >
+            Reset password
+          </button>
+          <button
+            type="button"
+            onClick={() => void handleLogout()}
+            disabled={loggingOut}
+            className="rounded-lg border border-white/25 px-4 py-2 text-sm font-semibold text-white transition hover:bg-white/10 disabled:opacity-50"
+          >
+            {loggingOut ? "Signing out…" : "Sign out"}
+          </button>
+        </div>
       </header>
+
+      <ApplicantResetPasswordModal
+        open={resetPasswordOpen}
+        email={user.email}
+        onClose={() => setResetPasswordOpen(false)}
+      />
 
       <section className="rounded-2xl border border-white/10 bg-white p-6 shadow-lg">
         <h2 className="text-lg font-bold text-[#062763]">Your application</h2>

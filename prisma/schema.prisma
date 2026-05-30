@@ -285,3 +285,16 @@ model ApplicantAccount {
 
   @@map("applicant_accounts")
 }
+
+/// One-time link to reset an applicant dashboard password
+model ApplicantPasswordResetToken {
+  id        String   @id @default(cuid())
+  token     String   @unique
+  email     String
+  expiresAt DateTime @map("expires_at")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([email])
+  @@index([expiresAt])
+  @@map("applicant_password_reset_tokens")
+}

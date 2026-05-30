@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useState } from "react";
 import { defaultDashboardPathForRole } from "@/lib/dashboard-portal";
+import { APPLICANT_LOGIN_PATH } from "@/lib/applicant-login-paths";
 
 function LoginFormContent() {
   const router = useRouter();
@@ -169,7 +170,7 @@ function LoginFormContent() {
           </Link>
           <span className="mx-2 text-slate-300">·</span>
           <Link
-            href="/applicant/login"
+            href={APPLICANT_LOGIN_PATH}
             className="font-semibold text-[#062763] hover:underline"
           >
             Applicant login

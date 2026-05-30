@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import {
   changeApplicantPassword,
   findApplicantDraftIdByEmail,
+  getApplicantAccount,
 } from "@/lib/applicant-account-service";
 import {
   ApplicantAuthError,
@@ -10,6 +11,7 @@ import {
 import { applicantPasswordChangedLoginPath } from "@/lib/applicant-login-paths";
 import {
   APPLICANT_SESSION_COOKIE,
+  applicantSessionCookieOptions,
   clearApplicantSessionCookieOptions,
   getApplicantSessionFromCookie,
 } from "@/lib/applicant-session";
@@ -27,7 +29,16 @@ export async function POST(request: Request) {
       confirmPassword?: string;
       currentPassword?: string;
       redirect?: string;
+      staySignedIn?: boolean;
     };
+
+    const account = await getApplicantAccount(session.email);
+    if (!account) {
+      return NextResponse.json({ error: "Account not found." }, { status: 404 });
+    }
+
+    const forcedFirstChange = account.mustChangePassword;
+    const staySignedIn = body.staySignedIn === true && !forcedFirstChange;
 
     const newPassword = body.newPassword?.trim() ?? "";
     const confirmPassword = body.confirmPassword?.trim() ?? "";
@@ -44,13 +55,44 @@ export async function POST(request: Request) {
       );
     }
 
+    if (staySignedIn && !body.currentPassword?.trim()) {
+      return NextResponse.json(
+        { error: "Current password is required." },
+        { status: 400 }
+      );
+    }
+
     await changeApplicantPassword(session.email, newPassword, {
       currentPassword: body.currentPassword,
     });
 
-    await findApplicantDraftIdByEmail(session.email);
     const user = await getApplicantSessionUser();
 
+    if (staySignedIn) {
+      const applicantId = await findApplicantDraftIdByEmail(session.email);
+      const response = NextResponse.json({
+        ok: true,
+        message: "Password updated successfully.",
+        user,
+      });
+
+      const opts = await applicantSessionCookieOptions(
+        session.email,
+        applicantId,
+        false
+      );
+      response.cookies.set(APPLICANT_SESSION_COOKIE, opts.value, {
+        httpOnly: opts.httpOnly,
+        sameSite: opts.sameSite,
+        secure: opts.secure,
+        path: opts.path,
+        maxAge: opts.maxAge,
+      });
+
+      return response;
+    }
+
+    await findApplicantDraftIdByEmail(session.email);
     const redirectTo = applicantPasswordChangedLoginPath(session.email);
 
     const response = NextResponse.json({

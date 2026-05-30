@@ -133,6 +133,28 @@ export async function changeApplicantPassword(
   });
 }
 
+export async function resetApplicantPassword(
+  email: string,
+  newPassword: string
+): Promise<void> {
+  const normalized = normalizeEmail(email);
+  const row = await prisma.applicantAccount.findUnique({
+    where: { email: normalized },
+  });
+  if (!row) throw new Error("Account not found");
+
+  const passwordError = validatePassword(newPassword);
+  if (passwordError) throw new Error(passwordError);
+
+  await prisma.applicantAccount.update({
+    where: { email: normalized },
+    data: {
+      passwordHash: await hashPassword(newPassword),
+      mustChangePassword: false,
+    },
+  });
+}
+
 export async function findApplicantDraftIdByEmail(
   email: string
 ): Promise<string | null> {

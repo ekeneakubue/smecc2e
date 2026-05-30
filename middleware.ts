@@ -18,13 +18,31 @@ import {
 
 const APPLICANT_PUBLIC_PATHS = new Set([
   "/applicant/login",
+  "/applicant/forgot-password",
+  "/applicant/reset-password",
+  "/application/login",
+  "/application/forgot-password",
+  "/application/reset-password",
 ]);
 
 const APPLICANT_CONTINUE_PATH = "/applicant/application?page=2";
 const APPLICANT_CHANGE_PASSWORD_PATH = `/applicant/change-password?redirect=${encodeURIComponent(APPLICANT_CONTINUE_PATH)}`;
 
+function isApplicantPublicPath(pathname: string): boolean {
+  return APPLICANT_PUBLIC_PATHS.has(pathname);
+}
+
 function isApplicantPath(pathname: string): boolean {
   return pathname === "/applicant" || pathname.startsWith("/applicant/");
+}
+
+function shouldBypassApplicantLoginRedirect(pathname: string): boolean {
+  return (
+    pathname === "/applicant/reset-password" ||
+    pathname === "/applicant/forgot-password" ||
+    pathname === "/application/reset-password" ||
+    pathname === "/application/forgot-password"
+  );
 }
 
 export async function middleware(request: NextRequest) {
@@ -38,10 +56,15 @@ export async function middleware(request: NextRequest) {
   const applicantLoggedIn = Boolean(applicantSession);
 
   if (isApplicantPath(pathname)) {
-    if (APPLICANT_PUBLIC_PATHS.has(pathname)) {
+    if (isApplicantPublicPath(pathname)) {
       const freshVerification =
         request.nextUrl.searchParams.get("verified") === "1";
-      if (applicantLoggedIn && applicantSession && !freshVerification) {
+      if (
+        applicantLoggedIn &&
+        applicantSession &&
+        !freshVerification &&
+        !shouldBypassApplicantLoginRedirect(pathname)
+      ) {
         const target = applicantSession.mustChangePassword
           ? APPLICANT_CHANGE_PASSWORD_PATH
           : APPLICANT_CONTINUE_PATH;
@@ -117,6 +140,22 @@ export async function middleware(request: NextRequest) {
     }
   }
 
+  if (isApplicantPublicPath(pathname)) {
+    const freshVerification =
+      request.nextUrl.searchParams.get("verified") === "1";
+    if (
+      applicantLoggedIn &&
+      applicantSession &&
+      !freshVerification &&
+      !shouldBypassApplicantLoginRedirect(pathname)
+    ) {
+      const target = applicantSession.mustChangePassword
+        ? APPLICANT_CHANGE_PASSWORD_PATH
+        : APPLICANT_CONTINUE_PATH;
+      return NextResponse.redirect(new URL(target, request.url));
+    }
+  }
+
   return NextResponse.next();
 }
 
@@ -126,6 +165,7 @@ export const config = {
     "/administrator/:path*",
     "/login",
     "/application",
+    "/application/:path*",
     "/applicant",
     "/applicant/:path*",
   ],
