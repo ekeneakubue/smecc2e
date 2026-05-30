@@ -1,7 +1,12 @@
 import { randomBytes } from "crypto";
 import type { ApplicationPayload } from "./application-types";
 import { applicantPrimaryEmail } from "./application-types";
+import { isValidEmail, normalizeEmail } from "./email-normalize";
 import { withPrismaRetry } from "./prisma-errors";
+import {
+  VERIFICATION_TOKEN_TTL_HOURS,
+  VERIFICATION_TOKEN_TTL_MS,
+} from "./verification-constants";
 import { getVerifiedEmailFromCookie } from "./verification-session";
 import { prisma } from "./prisma";
 
@@ -12,21 +17,11 @@ export type VerificationToken = {
   expiresAt: string;
 };
 
-/** Verification links remain valid for 24 hours (override with VERIFICATION_TOKEN_TTL_HOURS). */
-export const VERIFICATION_TOKEN_TTL_MS =
-  (Number(process.env.VERIFICATION_TOKEN_TTL_HOURS) || 24) * 60 * 60 * 1000;
-
-export const VERIFICATION_TOKEN_TTL_HOURS = Math.round(
-  VERIFICATION_TOKEN_TTL_MS / (60 * 60 * 1000)
-);
-
-export function normalizeEmail(email: string): string {
-  return email.trim().toLowerCase();
-}
-
-export function isValidEmail(email: string): boolean {
-  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizeEmail(email));
-}
+export {
+  VERIFICATION_TOKEN_TTL_HOURS,
+  VERIFICATION_TOKEN_TTL_MS,
+} from "./verification-constants";
+export { isValidEmail, normalizeEmail } from "./email-normalize";
 
 export async function createVerificationToken(
   email: string,

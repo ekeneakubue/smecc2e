@@ -1,8 +1,8 @@
 import { cookies } from "next/headers";
-import { normalizeEmail } from "./email-verification-store";
+import { normalizeEmail } from "./email-normalize";
+import { VERIFIED_EMAIL_COOKIE } from "./verification-constants";
 
-export const VERIFIED_EMAIL_COOKIE = "smecc2e_verified_email";
-export const VERIFY_TEMP_PASSWORD_COOKIE = "smecc2e_verify_temp_pw";
+export { VERIFIED_EMAIL_COOKIE, VERIFY_TEMP_PASSWORD_COOKIE } from "./verification-constants";
 
 export async function getVerifiedEmailFromCookie(): Promise<string | null> {
   const jar = await cookies();

@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useState } from "react";
 import { VerifyEmailSuccess } from "./verify-email-success";
-import { VERIFICATION_TOKEN_TTL_HOURS } from "@/lib/email-verification-store";
+import { VERIFICATION_TOKEN_TTL_HOURS } from "@/lib/verification-constants";
 
 type VerifyEmailConfirmProps = {
   token: string;

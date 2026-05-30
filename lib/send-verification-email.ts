@@ -3,7 +3,7 @@ import {
   emailLayout,
   escapeHtml,
 } from "./email-layout";
-import { VERIFICATION_TOKEN_TTL_HOURS } from "./email-verification-store";
+import { VERIFICATION_TOKEN_TTL_HOURS } from "./verification-constants";
 import {
   getEmailFrom,
   getResendClient,
