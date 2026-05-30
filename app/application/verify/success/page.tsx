@@ -1,6 +1,6 @@
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
-import { VerifyEmailSuccess } from "../../components/verify-email-success";
+import { VerifyEmailSuccess } from "../../../components/verify-email-success";
 import { VERIFY_TEMP_PASSWORD_COOKIE } from "@/lib/verification-session";
 
 type VerifySuccessPageProps = {
